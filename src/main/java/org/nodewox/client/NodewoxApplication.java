@@ -9,6 +9,8 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+import org.json.JSONObject;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -23,6 +25,7 @@ import java.security.cert.CertificateException;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -31,6 +34,8 @@ public abstract class NodewoxApplication extends Application {
 
     // mqtt event processing handler
     public final Handler EventHandler = new MqttEventHandler(this);
+
+    protected Thing thing = null;
 
     private boolean mIsConnected = false;
     private PendingIntent mConnCheckIntent = null;
@@ -61,6 +66,15 @@ public abstract class NodewoxApplication extends Application {
 
     // when mqtt publish success or fail
     protected abstract void onMqttPub(Serializable ctx, String error);
+
+    public Thing getThing() {
+        return thing;
+    }
+
+    // get REST service
+    public NodewoxREST getRest() {
+        return new NodewoxREST();
+    }
 
     public boolean mqttIsConnected() {
         return mIsConnected;
@@ -110,14 +124,14 @@ public abstract class NodewoxApplication extends Application {
     }
 
     public int getConnectionCheckInterval() {
-        return 5000;
+        return 5000;  // in sec
     }
 
     private void checkConnection(boolean on) {
         if (on && mConnCheckIntent == null) {
             int timeout = getConnectionCheckInterval();
             if (timeout > 0) {
-                Log.v("nodewox", "schedule to connect after " + timeout + "ms");
+                Log.v("nodewox/service", "schedule to connect after " + timeout + "ms");
                 Intent it = new Intent(this, getService().getClass());
                 it.setAction(NodewoxService.ACTION_CONNECT);
                 mConnCheckIntent = PendingIntent.getService(this, 0, it, 0);
@@ -129,93 +143,6 @@ public abstract class NodewoxApplication extends Application {
             ((AlarmManager) getSystemService(ALARM_SERVICE)).cancel(mConnCheckIntent);
             mConnCheckIntent = null;
         }
-    }
-
-    public SSLSocketFactory makeSSLSocketFactory(byte[] ca, String ca_pass, byte[] client_cert_p12, String secret) {
-        // trust CA, set ca==null to use build in CA
-        TrustManager[] cam = null;
-        if (ca != null && ca.length > 0) {
-            KeyStore kstore = null;
-            try {
-                kstore = KeyStore.getInstance("BKS");
-                kstore.load((new ByteArrayInputStream(ca)), ca_pass.toCharArray());
-            } catch (KeyStoreException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (IOException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (NoSuchAlgorithmException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (CertificateException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            }
-
-            try {
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
-                tmf.init(kstore);
-                cam = tmf.getTrustManagers();
-            } catch (NoSuchAlgorithmException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (KeyStoreException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            }
-        }
-
-        // Client cert
-        KeyManager[] keys = null;
-        if (client_cert_p12 != null && client_cert_p12.length > 0) {
-            KeyStore cli_store = null;
-            try {
-                cli_store = KeyStore.getInstance("PKCS12");
-                cli_store.load(new ByteArrayInputStream(client_cert_p12), secret.toCharArray());
-            } catch (KeyStoreException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (IOException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (NoSuchAlgorithmException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (CertificateException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            }
-
-            try {
-                KeyManagerFactory kmf = KeyManagerFactory.getInstance("X509");
-                kmf.init(cli_store, null);
-                keys = kmf.getKeyManagers();
-            } catch (UnrecoverableKeyException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (NoSuchAlgorithmException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            } catch (KeyStoreException e) {
-                Log.e("nodewox", e.getMessage());
-                return null;
-            }
-        }
-
-        // make ssl context
-        try {
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(keys, cam, new SecureRandom());
-            return ctx.getSocketFactory();
-
-        } catch (NoSuchAlgorithmException e) {
-            Log.e("nodewox", e.getMessage());
-        } catch (KeyManagementException e) {
-            Log.e("nodewox", e.getMessage());
-        }
-
-        return null;
     }
 
     // mqtt event handler class

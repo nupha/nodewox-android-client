@@ -318,8 +318,7 @@ public abstract class NodewoxService extends Service {
             opts.setWill(will, getMqttWillPayload(), getMqttWillQos(), false);
         }
 
-        // make ssl socket
-        SocketFactory sf = mApp.makeSSLSocketFactory(getMqttCa(), getMqttCaPass(), getMqttCert(), getMqttCertPass());
+        SocketFactory sf = Utils.makeSSLSocketFactory(getMqttCa(), getMqttCaPass(), getMqttCert(), getMqttCertPass());
         if (sf != null)
             opts.setSocketFactory(sf);
 

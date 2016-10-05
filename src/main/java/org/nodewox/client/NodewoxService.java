@@ -203,11 +203,11 @@ public abstract class NodewoxService extends Service {
     }
 
     // get trust ca
-    protected byte[] getMqttCa() {
+    protected byte[] getMqttCA() {
         return null;
     }
 
-    protected String getMqttCaPass() {
+    protected String getMqttCAPass() {
         return "";
     }
 
@@ -318,7 +318,7 @@ public abstract class NodewoxService extends Service {
             opts.setWill(will, getMqttWillPayload(), getMqttWillQos(), false);
         }
 
-        SocketFactory sf = Utils.makeSSLSocketFactory(getMqttCa(), getMqttCaPass(), getMqttCert(), getMqttCertPass());
+        SocketFactory sf = Utils.makeSSLSocketFactory(getMqttCA(), getMqttCAPass(), getMqttCert(), getMqttCertPass());
         if (sf != null)
             opts.setSocketFactory(sf);
 

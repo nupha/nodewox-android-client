@@ -8,7 +8,7 @@ public interface HttpRequestListener {
 
     void onSuccess(JSONObject resp);
 
-    void onFail(String errmsg);
+    void onFail(int code, String errmsg);
 
     void onError(int status, String errmsg);
 }

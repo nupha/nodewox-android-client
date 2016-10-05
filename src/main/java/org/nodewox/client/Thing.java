@@ -5,8 +5,6 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -79,10 +77,10 @@ public abstract class Thing extends Node {
         return false;
     }
 
-    public void register(String username, String password, final ThingRegisterListener callback) {
+    public void register(String username, String password, final ResponseListener callback) {
         JSONObject o = asJSON();
         if (mKey == null || o == null) {
-            callback.onFail("not a thing");
+            callback.onFail(-1, "not a thing");
             return;
         }
         byte[] data = o.toString().getBytes();
@@ -97,15 +95,14 @@ public abstract class Thing extends Node {
         mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new HttpRequestListener() {
             @Override
             public void onStart() {
-                callback.onStart();
             }
 
             @Override
             public void onError(int status, String errmsg) {
                 if (status == 403)
-                    callback.onFail("username/password does not match");
+                    callback.onFail(status, "username/password does not match");
                 else
-                    callback.onFail(errmsg);
+                    callback.onFail(status, errmsg);
             }
 
             @Override
@@ -114,22 +111,22 @@ public abstract class Thing extends Node {
                     resp.put("key", mKey);
                     resp.put("secret", mSecret);
                     loadConfig();
-                    callback.onSuccess();
+                    callback.onSuccess(resp);
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
             }
 
             @Override
-            public void onFail(String errmsg) {
-                callback.onFail(errmsg);
+            public void onFail(int code, String errmsg) {
+                callback.onFail(code, errmsg);
             }
         });
     }
 
-    public void loadRemoteProfile(final ThingProfileListener callback) {
+    public void loadRemoteProfile(final ResponseListener callback) {
         if (!isRegistered()) {
-            callback.onFail("not yet registered");
+            callback.onFail(-1, "not yet registered");
             return;
         }
 
@@ -142,22 +139,21 @@ public abstract class Thing extends Node {
         mRest.get("thing/profile", headers, new HttpRequestListener() {
             @Override
             public void onStart() {
-                callback.onStart();
             }
 
             @Override
             public void onError(int status, String errmsg) {
                 switch (status) {
                     case 403:
-                        callback.onFail("invalid thing cert");
+                        callback.onFail(status, "invalid thing cert");
                         break;
                     case 301:
-                        callback.onFail("thing not exists");
+                        callback.onFail(status, "thing not exists");
                         break;
                     default:
                         if (errmsg == null || errmsg.length() == 0)
                             errmsg = String.valueOf(status);
-                        callback.onFail(errmsg);
+                        callback.onFail(status, errmsg);
                 }
             }
 
@@ -165,30 +161,14 @@ public abstract class Thing extends Node {
             public void onSuccess(JSONObject resp) {
                 Log.v("nodewox", "response " + resp.toString());
                 setProfile(resp);
-                callback.onSuccess();
+                callback.onSuccess(resp);
             }
 
             @Override
-            public void onFail(String errmsg) {
-                callback.onFail(errmsg);
+            public void onFail(int status, String errmsg) {
+                callback.onFail(status, errmsg);
             }
         });
-    }
-
-    public interface ThingRegisterListener {
-        void onStart();
-
-        void onSuccess();
-
-        void onFail(final String errmsg);
-    }
-
-    public interface ThingProfileListener {
-        void onStart();
-
-        void onSuccess();
-
-        void onFail(final String errmsg);
     }
 
 }

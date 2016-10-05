@@ -36,7 +36,7 @@ public class HttpRequest extends AsyncTask<String, Integer, Boolean> {
             mConn.setUseCaches(false);
         } catch (IOException e) {
             mConn = null;
-            mCallback.onFail("IO Error");
+            mCallback.onError(-1, "IO Error");
         }
     }
 
@@ -108,11 +108,12 @@ public class HttpRequest extends AsyncTask<String, Integer, Boolean> {
                 switch (mConn.getResponseCode()) {
                     case 200:
                         JSONObject res = processResponse(mConn);
-                        if (res.optInt("status", -1) == 0) {
+                        int status = res.optInt("status", -1);
+                        if (status == 0) {
                             mCallback.onSuccess(res.optJSONObject("response"));
                             return true;
                         } else
-                            mCallback.onFail(res.optString("response", "error"));
+                            mCallback.onFail(status, res.optString("response", "error"));
                         break;
                     case 501:
                         mCallback.onError(501, "service not implemented");

@@ -11,58 +11,24 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public abstract class Thing {
+public abstract class Thing extends Node {
 
     protected final Map<String, Channel> channels = new HashMap<>();
 
-    protected NodewoxREST mRest = null;
-    protected String mKey = null;
-    protected String mSecret = null;
-    protected byte[] mCertP12 = null;
-    protected String mMqttURI = "";
-    private int mID = 0;
+    public Thing(NodewoxApplication app) {
+        super(app);
+    }
 
     public abstract JSONObject asJSON();
 
-    protected abstract boolean loadConfig();
-
-    protected abstract void saveConfig(JSONObject data);
-
-    public abstract byte[] getMqttCA();
-
-    public void setREST(NodewoxREST rest) {
-        mRest = rest;
+    @Override
+    public boolean isThing() {
+        return true;
     }
 
+    @Override
     public boolean isRegistered() {
         return mKey != null && mKey.length() > 0 && mSecret != null && mCertP12 != null;
-    }
-
-    public String getKey() {
-        return mKey;
-    }
-
-    public int getID() {
-        return mID;
-    }
-
-    public byte[] getCert() {
-        return mCertP12;
-    }
-
-    public String getSecret() {
-        return mSecret;
-    }
-
-    public String getMqttURI() {
-        return mMqttURI;
-    }
-
-    protected void reset() {
-        mID = 0;
-        mKey = null;
-        mSecret = null;
-        mCertP12 = null;
     }
 
     public Map<String, Channel> getChannels() {
@@ -85,14 +51,9 @@ public abstract class Thing {
 
     protected boolean setProfile(JSONObject data) {
         try {
-            URI uri = new URI(data.getString("mqtt"));
-            mMqttURI = uri.getScheme();
-            if (mMqttURI.equals("mqtts"))
-                mMqttURI = "ssl";
-            mMqttURI += "://" + uri.getHost();
-            mMqttURI += ":" + uri.getPort();
-
             mID = data.getInt("id");
+            if (data.has("mqtt"))
+                setMqttURI(data.getString("mqtt"));
 
             // setup channel id/param
             if (data.has("channels")) {
@@ -112,8 +73,6 @@ public abstract class Thing {
             return true;
 
         } catch (JSONException e) {
-            Log.e("nodewox", e.getMessage());
-        } catch (URISyntaxException e) {
             Log.e("nodewox", e.getMessage());
         }
 

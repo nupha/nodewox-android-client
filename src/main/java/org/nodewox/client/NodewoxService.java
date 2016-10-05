@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
@@ -254,7 +255,8 @@ public abstract class NodewoxService extends Service {
 
     // emit mqtt event
     private synchronized void _event(EventType eventType, Bundle data, Object ctx, Throwable error) {
-        if (mApp.EventHandler != null) {
+        if (mApp.getNode() != null) {
+            Handler h = mApp.getNode().getEventHandler();
             if (ctx != null) {
                 if (data == null)
                     data = new Bundle();
@@ -272,24 +274,21 @@ public abstract class NodewoxService extends Service {
             if (data != null)
                 m.setData(data);
 
-            mApp.EventHandler.sendMessage(m);
+            h.sendMessage(m);
         }
     }
 
     public synchronized boolean connect() {
         if (mMqttCli != null && mMqttCli.isConnected()) {
-            // we are already connected
-            return true;
+            return true;  // we are already connected
         }
 
         if (getMqttAddr().length() == 0) {
-            // invalid addr
-            return false;
+            return false;  // invalid addr
         }
 
         if (!onMqttBeforeConnect()) {
-            // connect prevented
-            return false;
+            return false;  // connect prevented
         }
 
         _event(EventType.CONNECTING, null, null, null);

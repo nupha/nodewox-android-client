@@ -36,13 +36,14 @@ public abstract class Node {
     // trust ca keystore (BKS format)
     protected byte[] mMqttCa = null;
     protected String mMqttCaPass = "";
+
     protected RestRequest mRest = null;
+
     private boolean mIsConnected = false;
     private PendingIntent mConnCheckIntent = null;
 
     public Node(NodewoxApplication app) {
         mApp = app;
-        mRest = app.getRest();
     }
 
     protected abstract boolean loadConfig();
@@ -174,6 +175,10 @@ public abstract class Node {
         mKey = null;
         mSecret = null;
         mCertP12 = null;
+    }
+
+    public RestRequest getRestRequest() {
+        return mRest;
     }
 
     public void setRestRequest(RestRequest rest) {

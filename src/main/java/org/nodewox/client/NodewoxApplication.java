@@ -6,9 +6,6 @@ public abstract class NodewoxApplication extends Application {
 
     protected Node mNode = null;
 
-    // make REST object
-    public abstract RestRequest getRest();
-
     // get binding mqttservice
     protected abstract NodewoxService getService();
 

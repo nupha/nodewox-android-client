@@ -79,50 +79,52 @@ public abstract class Thing extends Node {
     }
 
     public void register(String username, String password, final ResponseListener callback) {
-        JSONObject o = asJSON();
-        if (mKey == null || o == null) {
-            callback.onFail(-1, "not a thing");
-            return;
-        }
-        byte[] data = o.toString().getBytes();
-
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("authorization", "USERPW " + username + "\t" + password);
-        headers.put("charset", "utf-8");
-        headers.put("x-requested-with", "XMLHttpRequest");
-        headers.put("content-type", "application/json");
-
-        mRest.setClientCert(null, "");
-        mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new RestResponseListener() {
-            @Override
-            public void onResponse(final int status, final byte[] resp) {
+        if (mRest != null) {
+            JSONObject o = asJSON();
+            if (mKey == null || o == null) {
+                callback.onFail(-1, "not a thing");
+                return;
             }
+            byte[] data = o.toString().getBytes();
 
-            @Override
-            public void onError(int status, String errmsg) {
-                if (status == 403)
-                    callback.onFail(status, "username/password does not match");
-                else
-                    callback.onFail(status, errmsg);
-            }
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("authorization", "USERPW " + username + "\t" + password);
+            headers.put("charset", "utf-8");
+            headers.put("x-requested-with", "XMLHttpRequest");
+            headers.put("content-type", "application/json");
 
-            @Override
-            public void onSuccess(JSONObject resp) {
-                try {
-                    resp.put("key", mKey);
-                    resp.put("secret", mSecret);
-                    loadConfig();
-                    callback.onSuccess(resp);
-                } catch (JSONException e) {
-                    e.printStackTrace();
+            mRest.setClientCert(null, "");
+            mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new RestResponseListener() {
+                @Override
+                public void onResponse(final int status, final byte[] resp) {
                 }
-            }
 
-            @Override
-            public void onFail(int code, String errmsg) {
-                callback.onFail(code, errmsg);
-            }
-        });
+                @Override
+                public void onError(int status, String errmsg) {
+                    if (status == 403)
+                        callback.onFail(status, "username/password does not match");
+                    else
+                        callback.onFail(status, errmsg);
+                }
+
+                @Override
+                public void onSuccess(JSONObject resp) {
+                    try {
+                        resp.put("key", mKey);
+                        resp.put("secret", mSecret);
+                        loadConfig();
+                        callback.onSuccess(resp);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onFail(int code, String errmsg) {
+                    callback.onFail(code, errmsg);
+                }
+            });
+        }
     }
 
     public void loadRemoteProfile(final ResponseListener callback) {
@@ -131,45 +133,47 @@ public abstract class Thing extends Node {
             return;
         }
 
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("authorization", "CERT " + mSecret);
-        headers.put("x-requested-with", "XMLHttpRequest");
-        headers.put("charset", "utf-8");
+        if (mRest != null) {
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("authorization", "CERT " + mSecret);
+            headers.put("x-requested-with", "XMLHttpRequest");
+            headers.put("charset", "utf-8");
 
-        mRest.setClientCert(getCert(), getSecret());
-        mRest.get("thing/profile", headers, new RestResponseListener() {
-            @Override
-            public void onResponse(final int status, final byte[] resp) {
-            }
-
-            @Override
-            public void onError(int status, String errmsg) {
-                switch (status) {
-                    case 403:
-                        callback.onFail(status, "invalid thing cert");
-                        break;
-                    case 301:
-                        callback.onFail(status, "thing not exists");
-                        break;
-                    default:
-                        if (errmsg == null || errmsg.length() == 0)
-                            errmsg = String.valueOf(status);
-                        callback.onFail(status, errmsg);
+            mRest.setClientCert(getCert(), getSecret());
+            mRest.get("thing/profile", headers, new RestResponseListener() {
+                @Override
+                public void onResponse(final int status, final byte[] resp) {
                 }
-            }
 
-            @Override
-            public void onSuccess(JSONObject resp) {
-                Log.v("nodewox", "response " + resp.toString());
-                setProfile(resp);
-                callback.onSuccess(resp);
-            }
+                @Override
+                public void onError(int status, String errmsg) {
+                    switch (status) {
+                        case 403:
+                            callback.onFail(status, "invalid thing cert");
+                            break;
+                        case 301:
+                            callback.onFail(status, "thing not exists");
+                            break;
+                        default:
+                            if (errmsg == null || errmsg.length() == 0)
+                                errmsg = String.valueOf(status);
+                            callback.onFail(status, errmsg);
+                    }
+                }
 
-            @Override
-            public void onFail(int status, String errmsg) {
-                callback.onFail(status, errmsg);
-            }
-        });
+                @Override
+                public void onSuccess(JSONObject resp) {
+                    Log.v("nodewox", "response " + resp.toString());
+                    setProfile(resp);
+                    callback.onSuccess(resp);
+                }
+
+                @Override
+                public void onFail(int status, String errmsg) {
+                    callback.onFail(status, errmsg);
+                }
+            });
+        }
     }
 
 }

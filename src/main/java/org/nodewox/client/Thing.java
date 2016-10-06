@@ -5,6 +5,7 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -92,9 +93,13 @@ public abstract class Thing extends Node {
         headers.put("content-type", "application/json");
 
         mRest.setClientCert(null, "");
-        mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new HttpRequestListener() {
+        mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new RestResponseListener() {
             @Override
             public void onStart() {
+            }
+
+            @Override
+            public void onResponse(int status, HttpURLConnection conn) {
             }
 
             @Override
@@ -136,9 +141,13 @@ public abstract class Thing extends Node {
         headers.put("charset", "utf-8");
 
         mRest.setClientCert(getCert(), getSecret());
-        mRest.get("thing/profile", headers, new HttpRequestListener() {
+        mRest.get("thing/profile", headers, new RestResponseListener() {
             @Override
             public void onStart() {
+            }
+
+            @Override
+            public void onResponse(int status, HttpURLConnection conn) {
             }
 
             @Override

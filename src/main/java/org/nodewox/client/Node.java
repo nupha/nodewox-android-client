@@ -36,7 +36,7 @@ public abstract class Node {
     // trust ca keystore (BKS format)
     protected byte[] mMqttCa = null;
     protected String mMqttCaPass = "";
-    protected NodewoxREST mRest = null;
+    protected RestRequest mRest = null;
     private boolean mIsConnected = false;
     private PendingIntent mConnCheckIntent = null;
 
@@ -176,7 +176,7 @@ public abstract class Node {
         mCertP12 = null;
     }
 
-    public void setREST(NodewoxREST rest) {
+    public void setRestRequest(RestRequest rest) {
         mRest = rest;
     }
 

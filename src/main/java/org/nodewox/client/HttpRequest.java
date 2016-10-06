@@ -1,138 +1,121 @@
 package org.nodewox.client;
 
-import android.os.AsyncTask;
-import android.util.Log;
-
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.ProtocolException;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Map;
 
 import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 
-public class HttpRequest extends AsyncTask<String, Integer, Boolean> {
+public class HttpRequest {
 
-    private final HttpRequestListener mCallback;
-    private final HttpMethod mMethod;
-    private HttpURLConnection mConn;
-    private byte[] mPostData = null;
+    private byte[] mClientCert = null;
+    private String mClientCertPass = "";
 
-    public HttpRequest(HttpMethod method, URL url, byte[] postdata, final HttpRequestListener callback) {
-        mMethod = method;
-        mPostData = postdata;
-        mCallback = callback;
-
-        try {
-            mConn = (HttpURLConnection) url.openConnection();
-            mConn.setUseCaches(false);
-        } catch (IOException e) {
-            mConn = null;
-            mCallback.onError(-1, "IO Error");
-        }
+    public String getBaseUrlString() {
+        return "https://www.nodewox.org/api";
     }
 
-    public void setConnectTimeout(int to) {
-        if (mConn != null)
-            mConn.setConnectTimeout(to);
+    public URL getBaseUrl() throws MalformedURLException {
+        return new URL(getBaseUrlString());
     }
 
-    public void setSSLSocketFactory(SSLSocketFactory fa) {
-        if (mConn != null)
-            ((HttpsURLConnection) mConn).setSSLSocketFactory(fa);
+    public URL joinUrl(String aurl) throws MalformedURLException {
+        return new URL(getBaseUrl(), aurl);
     }
 
-    public void setHostnameVerifier(HostnameVerifier v) {
-        if (mConn != null)
-            ((HttpsURLConnection) mConn).setHostnameVerifier(v);
+    public int getConnectTimeout() {
+        return 10000; // in ms
     }
 
-    public void setHeader(String key, String val) {
-        if (mConn != null)
-            mConn.setRequestProperty(key, val);
+    // return bytes of trust keystore, null to use default trust
+    protected byte[] getCA() {
+        return null;
     }
 
-    private JSONObject processResponse(HttpURLConnection conn) {
-        JSONObject res = null;
-        try {
-            InputStream ins = conn.getInputStream();
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            byte[] buf = new byte[1024];
-            int count = -1;
-            while ((count = ins.read(buf, 0, 1024)) != -1)
-                os.write(buf, 0, count);
-
-            String content = new String(os.toByteArray(), "utf-8");
-            res = new JSONObject(content);
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return res;
+    // password to trust keystore
+    protected String getCAPass() {
+        return "";
     }
 
-    @Override
-    protected Boolean doInBackground(String... params) {
-        if (mConn != null) {
-            mCallback.onStart();
-
-            try {
-                if (mMethod == HttpMethod.POST) {
-                    if (mPostData != null) {
-                        mConn.setRequestProperty("content-length", String.valueOf(mPostData.length));
-                        mConn.setDoOutput(true);
-                    }
-
-                    mConn.setRequestMethod("POST");
-                    if (mPostData != null) {
-                        OutputStream outs = mConn.getOutputStream();
-                        outs.write(mPostData);
-                    }
-                } else
-                    mConn.setRequestMethod("GET");
-
-                switch (mConn.getResponseCode()) {
-                    case 200:
-                        JSONObject res = processResponse(mConn);
-                        int status = res.optInt("status", -1);
-                        if (status == 0) {
-                            mCallback.onSuccess(res.optJSONObject("response"));
-                            return true;
-                        } else
-                            mCallback.onFail(status, res.optString("response", "error"));
-                        break;
-                    case 501:
-                        mCallback.onError(501, "service not implemented");
-                        break;
-                    default:
-                        mCallback.onError(mConn.getResponseCode(), "Error code: " + mConn.getResponseCode());
-                }
-
-            } catch (ProtocolException e) {
-                mCallback.onError(-1, "Protocol error");
-            } catch (IOException e) {
-                mCallback.onError(-1, "IO error");
-                Log.e("PaaN", e.getMessage());
-            }
-        }
-
+    protected boolean verifyHost(String hostname, SSLSession session) {
         return false;
     }
 
-    public enum HttpMethod {GET, POST}
+    public void setClientCert(byte[] cert, String pass) {
+        if (cert != null && cert.length > 0) {
+            mClientCert = cert;
+            mClientCertPass = pass;
+        } else {
+            mClientCert = null;
+            mClientCertPass = "";
+        }
+    }
+
+    protected HttpRequestTask makeRequestTask(HttpRequestTask.HttpMethod method, URL u, byte[] data,
+                                              HttpResponseListener callback) {
+        return new HttpRequestTask(method, u, data, callback);
+    }
+
+    protected void request(HttpRequestTask.HttpMethod method, String aurl, byte[] data, Map<String, String> headers,
+                           final HttpResponseListener callback) {
+        URL u;
+        try {
+            u = joinUrl(aurl);
+        } catch (MalformedURLException e) {
+            callback.onError(-1, "invalid url");
+            return;
+        }
+
+        HttpRequestTask req = makeRequestTask(method, u, data, callback);
+        req.setConnectTimeout(getConnectTimeout());
+        if (headers != null) {
+            for (Map.Entry<String, String> item : headers.entrySet()) {
+                req.setHeader(item.getKey(), item.getValue());
+            }
+        }
+
+        if (u.getProtocol().equals("https")) {
+            byte[] ca = getCA();
+            SSLSocketFactory sslf = Utils.makeSSLSocketFactory(ca, getCAPass(), mClientCert, mClientCertPass);
+            if (sslf != null) {
+                req.setSSLSocketFactory(sslf);
+                if (ca != null && ca.length > 0) {
+                    req.setHostnameVerifier(new HostnameVerifier() {
+                        public boolean verify(String hostname, SSLSession session) {
+                            return verifyHost(hostname, session);
+                        }
+                    });
+                }
+            }
+        }
+
+        req.execute();
+    }
+
+    public void post(String url, byte[] data, Map<String, String> headers, final HttpResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.POST, url, data, headers, callback);
+    }
+
+    public void post(String url, byte[] data, final HttpResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.POST, url, data, null, callback);
+    }
+
+    public void get(String url, Map<String, String> headers, final HttpResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.GET, url, null, headers, callback);
+    }
+
+    public void get(String url, final RestResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.GET, url, null, null, callback);
+    }
+
+    public void delete(String url, byte[] data, Map<String, String> headers, final HttpResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.DELETE, url, data, headers, callback);
+    }
+
+    public void delete(String url, byte[] data, final HttpResponseListener callback) {
+        request(HttpRequestTask.HttpMethod.DELETE, url, data, null, callback);
+    }
 
 }

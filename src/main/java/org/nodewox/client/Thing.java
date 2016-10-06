@@ -95,11 +95,7 @@ public abstract class Thing extends Node {
         mRest.setClientCert(null, "");
         mRest.post("thing/register?trust=BKS&cert=PKCS12", data, headers, new RestResponseListener() {
             @Override
-            public void onStart() {
-            }
-
-            @Override
-            public void onResponse(int status, HttpURLConnection conn) {
+            public void onResponse(final int status, final byte[] resp) {
             }
 
             @Override
@@ -143,11 +139,7 @@ public abstract class Thing extends Node {
         mRest.setClientCert(getCert(), getSecret());
         mRest.get("thing/profile", headers, new RestResponseListener() {
             @Override
-            public void onStart() {
-            }
-
-            @Override
-            public void onResponse(int status, HttpURLConnection conn) {
+            public void onResponse(final int status, final byte[] resp) {
             }
 
             @Override

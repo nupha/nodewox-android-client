@@ -4,7 +4,7 @@ import org.json.JSONObject;
 
 public interface RestResponseListener extends HttpResponseListener {
 
-    void onSuccess(JSONObject resp);
+    void onSuccess(final JSONObject resp);
 
-    void onFail(int code, String errmsg);
+    void onFail(final int errcode, final String errmsg);
 }

@@ -1,16 +1,11 @@
 package org.nodewox.client;
 
 import android.os.AsyncTask;
-import android.util.Log;
-
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
@@ -22,9 +17,13 @@ import javax.net.ssl.SSLSocketFactory;
 public class HttpRequestTask extends AsyncTask<String, Integer, Boolean> {
 
     private final HttpMethod mMethod;
-    private HttpURLConnection mConn;
+    private HttpURLConnection mConn = null;
     private byte[] mData = null;
     private HttpResponseListener mHttpCallback = null;
+
+    private byte[] mResp = null;
+    private int mCode = 0;
+    private String mErrMsg = null;
 
     public HttpRequestTask(HttpMethod method, URL url, byte[] postdata, final HttpResponseListener callback) {
         mMethod = method;
@@ -33,10 +32,12 @@ public class HttpRequestTask extends AsyncTask<String, Integer, Boolean> {
 
         try {
             mConn = (HttpURLConnection) url.openConnection();
-            mConn.setUseCaches(false);
+            mCode = 0;
+            mErrMsg = null;
         } catch (IOException e) {
             mConn = null;
-            mHttpCallback.onError(-1, "IO Error");
+            mCode = -1;
+            mErrMsg = e.getMessage();
         }
     }
 
@@ -64,82 +65,76 @@ public class HttpRequestTask extends AsyncTask<String, Integer, Boolean> {
             mConn.setRequestProperty(key, val);
     }
 
-    private JSONObject processResponse(HttpURLConnection conn) {
-        JSONObject res = null;
-        try {
-            InputStream ins = conn.getInputStream();
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            byte[] buf = new byte[1024];
-            int count = -1;
-            while ((count = ins.read(buf, 0, 1024)) != -1)
-                os.write(buf, 0, count);
-
-            String content = new String(os.toByteArray(), "utf-8");
-            res = new JSONObject(content);
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return res;
-    }
-
     @Override
     protected Boolean doInBackground(String... params) {
-        if (mConn == null) {
-            mHttpCallback.onError(-1, "not connected");
-            return false;
-        }
-
-        mHttpCallback.onStart();
-
-        if (mData != null) {
-            mConn.setRequestProperty("content-length", String.valueOf(mData.length));
-            mConn.setDoOutput(true);
-        }
-
-        try {
-            switch (mMethod) {
-                case GET:
-                    mConn.setRequestMethod("GET");
-                    break;
-                case POST:
-                    mConn.setRequestMethod("POST");
-                    break;
-                case PUT:
-                    mConn.setRequestMethod("PUT");
-                    break;
-                case DELETE:
-                    mConn.setRequestMethod("DELETE");
-                    break;
-            }
+        if (mConn != null) {
+            mConn.setUseCaches(false);
 
             if (mData != null) {
-                OutputStream outs = mConn.getOutputStream();
-                outs.write(mData);
+                mConn.setRequestProperty("content-length", String.valueOf(mData.length));
+                mConn.setDoOutput(true);
             }
 
-            if (mHttpCallback != null)
-                mHttpCallback.onResponse(mConn.getResponseCode(), mConn);
+            try {
+                switch (mMethod) {
+                    case GET:
+                        mConn.setRequestMethod("GET");
+                        break;
+                    case POST:
+                        mConn.setRequestMethod("POST");
+                        break;
+                    case PUT:
+                        mConn.setRequestMethod("PUT");
+                        break;
+                    case DELETE:
+                        mConn.setRequestMethod("DELETE");
+                        break;
+                }
 
-            return true;
+                if (mData != null) {
+                    OutputStream outs = mConn.getOutputStream();
+                    outs.write(mData);
+                }
 
-        } catch (ProtocolException e) {
-            Log.e("nodewox/httprequst", e.getMessage());
-            if (mHttpCallback != null)
-                mHttpCallback.onError(-1, e.getMessage());
-        } catch (IOException e) {
-            Log.e("nodewox/httprequst", e.getMessage());
-            if (mHttpCallback != null)
-                mHttpCallback.onError(-1, e.getMessage());
+                mCode = mConn.getResponseCode();
+                mResp = readContent(mConn);
+                return true;
+
+            } catch (ProtocolException e) {
+                mResp = null;
+                mCode = -1;
+                mErrMsg = e.getMessage();
+            } catch (IOException e) {
+                mResp = null;
+                mCode = -1;
+                mErrMsg = e.getMessage();
+            }
         }
 
         return false;
+    }
+
+    @Override
+    public void onPostExecute(Boolean ok) {
+        if (mHttpCallback != null) {
+            if (ok)
+                mHttpCallback.onResponse(mCode, mResp);
+            else
+                mHttpCallback.onError(mCode, mErrMsg);
+        }
+    }
+
+    private byte[] readContent(HttpURLConnection conn) throws IOException {
+        final int BUF_SIZE = 512;
+        InputStream ins = conn.getInputStream();
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+
+        byte[] buf = new byte[BUF_SIZE];
+        int count = -1;
+        while ((count = ins.read(buf, 0, BUF_SIZE)) != -1)
+            os.write(buf, 0, count);
+
+        return os.toByteArray();
     }
 
     public enum HttpMethod {GET, POST, DELETE, PUT}

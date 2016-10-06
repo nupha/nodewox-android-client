@@ -20,15 +20,10 @@ public class RestRequestTask extends HttpRequestTask {
         super(method, url, postdata, null);
         mRestCallback = callback;
 
+        // NOTE: following handler runs in main thread
         super.setResponseListener(new HttpResponseListener() {
             @Override
-            public void onStart() {
-                mRestCallback.onStart();
-            }
-
-            @Override
-            public void onResponse(int code, final HttpURLConnection conn) {
-                byte[] data = readContent(conn);
+            public void onResponse(final int code, final byte[] data) {
                 if (data == null || data.length == 0) {
                     mRestCallback.onError(code, "response contains no data");
                     return;
@@ -59,31 +54,10 @@ public class RestRequestTask extends HttpRequestTask {
             }
 
             @Override
-            public void onError(int status, String errmsg) {
+            public void onError(final int status, final String errmsg) {
                 mRestCallback.onError(status, errmsg);
             }
         });
     }
 
-    private byte[] readContent(HttpURLConnection conn) {
-        final int BUF_SIZE = 512;
-        byte[] res;
-
-        try {
-            InputStream ins = conn.getInputStream();
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-
-            byte[] buf = new byte[BUF_SIZE];
-            int count = -1;
-            while ((count = ins.read(buf, 0, BUF_SIZE)) != -1)
-                os.write(buf, 0, count);
-            res = os.toByteArray();
-
-        } catch (IOException e) {
-            Log.e("nodewox/restrequest", e.getMessage());
-            res = null;
-        }
-
-        return res;
-    }
 }

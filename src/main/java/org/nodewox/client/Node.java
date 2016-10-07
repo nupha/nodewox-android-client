@@ -1,13 +1,11 @@
 package org.nodewox.client;
 
 import android.app.AlarmManager;
-import android.app.Application;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.Base64;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -52,13 +50,6 @@ public abstract class Node {
 
     protected abstract void handleUserEvent(int event, Bundle data);
 
-    protected abstract int dispatchMessage(
-            final String topic,
-            final byte[] payload,
-            final int qos,
-            final boolean duplicate,
-            final boolean retained);
-
     // messaging handlers
     protected abstract void onConnecting(Serializable ctx);
 
@@ -75,6 +66,13 @@ public abstract class Node {
     protected abstract void onUnsubscribe(Serializable ctx, String[] topics, String error);
 
     protected abstract void onPublish(Serializable ctx, String error);
+
+    protected abstract void onMessage(
+            final String topic,
+            final byte[] payload,
+            final int qos,
+            final boolean duplicate,
+            final boolean retained);
 
     public boolean isThing() {
         return false;
@@ -340,7 +338,7 @@ public abstract class Node {
 
                 case MESSAGE:
                     String topic = bundle.getString("topic");
-                    mMsgr.dispatchMessage(
+                    mMsgr.onMessage(
                             topic,
                             bundle.getByteArray("payload"),
                             bundle.getInt("qos"),

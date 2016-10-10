@@ -1,178 +1,224 @@
 package org.nodewox.client;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
-import static android.content.Context.ALARM_SERVICE;
+import static org.nodewox.client.Node.NodeType.UNKNOWN;
 
 public abstract class Node {
 
-    protected final NodewoxApplication mApp;
-    private final Handler mEventHandler = new MessagingEventHandler(this);
+    // params of node
+    protected final Map<String, NodeParam> mParams = new HashMap<>();
+    private final NxApplication mApp;
+    // map of {key:child-node}
+    private final HashMap<String, Node> children = new HashMap<>();
 
-    protected String mKey = null;
-    protected int mID = 0;
-    protected String mSecret = null;
-    protected byte[] mCertP12 = null;
+    private final Node mParent;
 
-    protected String mMqttURI = "";
-    protected String mMqttUsername = "";
-    protected String mMqttPassword = "";
-    protected int mMqttKeepAlive = 60;
+    protected NodeType mNodeType = UNKNOWN;
 
-    // trust ca keystore (BKS format)
-    protected byte[] mMqttCa = null;
-    protected String mMqttCaPass = "";
-
+    protected String mName = "";
+    protected String mComment = "";
     protected RestRequest mRest = null;
+    private String mKey = null;
+    private int mID = 0;
+    private int mSeq = 0;
 
-    private boolean mIsConnected = false;
-    private PendingIntent mConnCheckIntent = null;
-
-    public Node(NodewoxApplication app) {
+    public Node(NxApplication app, String key, Node parent) {
         mApp = app;
+        mKey = key;
+        mParent = parent;
     }
 
-    protected abstract boolean loadConfig();
-
-    protected abstract void saveConfig(JSONObject data);
-
-    protected abstract void handleUserEvent(int event, Bundle data);
-
-    // messaging handlers
-    protected abstract void onConnecting(Serializable ctx);
-
-    protected abstract void onConnected(Serializable ctx);
-
-    protected abstract void onConnectFail(Serializable ctx, String error);
-
-    protected abstract void onDisconnected(Serializable ctx);
-
-    protected abstract void onConnectionLost(Serializable ctx, String error);
-
-    protected abstract void onSubscribe(Serializable ctx, String[] topics, String error);
-
-    protected abstract void onUnsubscribe(Serializable ctx, String[] topics, String error);
-
-    protected abstract void onPublish(Serializable ctx, String error);
-
-    protected abstract void onMessage(
-            final String topic,
-            final byte[] payload,
-            final int qos,
-            final boolean duplicate,
-            final boolean retained);
-
-    public boolean isThing() {
-        return false;
+    public Node(NxApplication app, String key) {
+        mApp = app;
+        mKey = key;
+        mParent = null;
     }
 
-    public boolean isRegistered() {
-        return false;
+    // called after param value changed
+    protected abstract void onParamChanged(final NodeParam param);
+
+    // handle incomming packet
+    public abstract Map<String, NodeTalk.Response> handlePacket(NodeTalk.Packet packet);
+
+    public NxApplication getApp() {
+        return mApp;
+    }
+
+    public NodeType getNodeType() {
+        return mNodeType;
+    }
+
+    public Node getParent() {
+        return mParent;
+    }
+
+    public Node getChild(int code) {
+        for (Map.Entry<String, Node> pair : children.entrySet()) {
+            if (pair.getValue().getID() == code)
+                return pair.getValue();
+        }
+        return null;
+    }
+
+    public Node getChild(String key) {
+        if (children.containsKey(key))
+            return children.get(key);
+        else
+            return null;
+    }
+
+    public void addChild(Node node) {
+        assert (node.getParent() == this) : "parent don't match";
+        if (node.getParent() == this) {
+            assert (node.getKey() != null) : "key!=null for children node";
+            children.put(node.getKey(), node);
+        }
+    }
+
+    public Collection<Node> getChildren() {
+        return children.values();
     }
 
     public String getKey() {
         return mKey;
     }
 
+    public void setKey(String v) {
+        assert (mKey == null);
+        mKey = v;
+    }
+
     public int getID() {
         return mID;
     }
 
-    public void setUsernamePassword(String u, String p) {
-        mMqttUsername = u;
-        mMqttPassword = p;
+    public void setID(int i) {
+        mID = i;
     }
 
-    public String getMqttUsername() {
-        return mMqttUsername;
+    public String getName() {
+        return mName;
     }
 
-    public String getMqttPassword() {
-        return mMqttPassword;
+    public void setName(String v) {
+        mName = v;
     }
 
-    public void setMqttCA(byte[] bks, String keypass) {
-        if (bks != null && bks.length > 0) {
-            mMqttCa = bks;
-            mMqttCaPass = keypass;
-        } else {
-            mMqttCa = null;
-            mMqttCaPass = "";
+    public int getSeq() {
+        return mSeq;
+    }
+
+    public void setSeq(int v) {
+        mSeq = v;
+    }
+
+    public <T extends Object> NodeParam<T> addParam(String key, String name, T val) {
+        NodeParam<T> p = new NodeParam<>(this, key, name, val);
+        p.setSeq(mParams.size());
+        mParams.put(key, p);
+        return p;
+    }
+
+    public <T extends Object> NodeParam<T> addParam(String key, T val) {
+        NodeParam<T> p = new NodeParam<>(this, key, "", val);
+        p.setSeq(mParams.size());
+        mParams.put(key, p);
+        return p;
+    }
+
+    public NodeParam getParam(String key) {
+        if (mParams.containsKey(key))
+            return mParams.get(key);
+        else
+            return null;
+    }
+
+    public <T> boolean setParam(String key, T val) {
+        if (mParams.containsKey(key)) {
+            NodeParam<T> p = mParams.get(key);
+            if (p != null && p.setValue(val))
+                return true;
+        }
+        return false;
+    }
+
+    // config node from JSON
+    protected void configure(JSONObject data) throws JSONException {
+        if (data.has("id")) {
+            setID(data.getInt("id"));
+        }
+
+        // params
+        if (data.has("params")) {
+            JSONObject params = data.getJSONObject("params");
+            Iterator<String> it = params.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                if (mParams.containsKey(key))
+                    mParams.get(key).configure(params.getJSONObject(key));
+            }
+        }
+
+        // configure children nodes
+        if (data.has("children")) {
+            JSONObject chans = data.getJSONObject("children");
+            Iterator<String> it = chans.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                Node ch = getChild(key);
+                Log.v("nodewox", key + ", " + chans.getJSONObject(key));
+                if (ch != null)
+                    ch.configure(chans.getJSONObject(key));
+            }
         }
     }
 
-    public byte[] getMqttCA() {
-        return mMqttCa;
-    }
+    public JSONObject asJSON() throws JSONException {
+        JSONObject res = new JSONObject();
+        res.put("key", mKey);
 
-    public String getMqttCAPass() {
-        return mMqttCaPass;
-    }
+        if (mName.length() > 0)
+            res.put("name", mName);
 
-    public void setClientCert(byte[] cert, String certkey) {
-        if (cert != null && cert.length > 0) {
-            mCertP12 = cert;
-            mSecret = certkey;
-        } else {
-            mCertP12 = null;
-            mSecret = "";
+        if (mComment.length() > 0)
+            res.put("comment", mComment);
+
+        if (mSeq > 0)
+            res.put("seq", mSeq);
+
+        // params
+        if (!mParams.isEmpty()) {
+            JSONObject params = new JSONObject();
+            for (Map.Entry<String, NodeParam> item : mParams.entrySet()) {
+                params.put(item.getKey(), item.getValue().asJSON());
+            }
+            res.put("params", params);
         }
-    }
 
-    public byte[] getCert() {
-        return mCertP12;
-    }
-
-    public String getSecret() {
-        return mSecret;
-    }
-
-    public String getMqttURI() {
-        return mMqttURI;
-    }
-
-    public boolean setMqttURI(String auri) {
-        URI uri;
-        try {
-            uri = new URI(auri);
-            mMqttURI = uri.getScheme();
-            if (mMqttURI.equals("mqtts"))
-                mMqttURI = "ssl";
-            mMqttURI += "://" + uri.getHost();
-            mMqttURI += ":" + uri.getPort();
-            return true;
-        } catch (URISyntaxException e) {
-            Log.v("nodewox", "invalid mqtt uri " + auri);
-            return false;
+        // children
+        if (!children.isEmpty()) {
+            JSONObject chs = new JSONObject();
+            for (Map.Entry<String, Node> item : children.entrySet()) {
+                chs.put(item.getKey(), item.getValue().asJSON());
+            }
+            res.put("children", chs);
         }
-    }
 
-    public int getMqttKeepAlive() {
-        return mMqttKeepAlive;
-    }
-
-    public void setMqttKeepAlive(int v) {
-        if (v > 0)
-            mMqttKeepAlive = v;
+        return res;
     }
 
     protected void reset() {
         mID = 0;
         mKey = null;
-        mSecret = null;
-        mCertP12 = null;
     }
 
     public RestRequest getRestRequest() {
@@ -183,173 +229,80 @@ public abstract class Node {
         mRest = rest;
     }
 
-    public boolean isConnected() {
-        return mIsConnected;
-    }
+    // handle request message
+    public Map<String, NodeTalk.Response> handleRequest(NodeTalk.Request msg) {
+        if (BuildConfig.DEBUG && msg == null)
+            throw new AssertionError("request message must not be null for handleRequest()");
 
-    public Handler getEventHandler() {
-        return mEventHandler;
-    }
+        Map<String, NodeTalk.Response> res = new HashMap<>();
+        NodeTalk.Response.AckType acktype = null;
+        boolean check_param = false;
 
-    public int getConnectionCheckInterval() {
-        return 5000;  // in sec
-    }
+        switch (msg.getAction()) {
+            case ACTION_CHECK_ALIVE:
+                acktype = NodeTalk.Response.AckType.ACK_OK;
+                break;
 
-    private void checkConnection(boolean on) {
-        if (on && mConnCheckIntent == null) {
-            int timeout = getConnectionCheckInterval();
-            if (timeout > 0) {
-                Log.v("nodewox/service", "schedule to connect after " + timeout + "ms");
-                Intent it = new Intent(mApp, mApp.getService().getClass());
-                it.setAction(NodewoxService.ACTION_CONNECT);
-                mConnCheckIntent = PendingIntent.getService(mApp, 0, it, 0);
-                long now = System.currentTimeMillis();
-                ((AlarmManager) mApp.getSystemService(ALARM_SERVICE)).setRepeating(
-                        AlarmManager.RTC_WAKEUP, now + 1000, timeout, mConnCheckIntent);
-            }
-        } else if (!on && mConnCheckIntent != null) {
-            ((AlarmManager) mApp.getSystemService(ALARM_SERVICE)).cancel(mConnCheckIntent);
-            mConnCheckIntent = null;
-        }
-    }
+            case ACTION_CHECK_PARAM:
+                if (!mParams.isEmpty()) {
+                    acktype = NodeTalk.Response.AckType.ACK_OK;
+                    check_param = true;
+                }
+                break;
 
-    public synchronized void connect() {
-        if (!isConnected()) {
-            checkConnection(false);  // stop check connection
-            mApp.getService().connect();
-        }
-    }
+            case ACTION_CHECK_PARAM_ALIVE:
+                acktype = NodeTalk.Response.AckType.ACK_OK;
+                if (!mParams.isEmpty())
+                    check_param = true;
+                break;
 
-    public synchronized void disconnect() {
-        checkConnection(false);
-        mApp.getService().disconnect();
-    }
-
-    public synchronized void subscribe(String[] topics, Serializable ctx) {
-        if (isConnected()) {
-            mApp.getService().subscribe(topics, ctx);
-        }
-    }
-
-    public synchronized void subscribe(String[] topics) {
-        subscribe(topics, null);
-    }
-
-    public synchronized void unsubscribe(final String[] topics, Serializable ctx) {
-        if (isConnected()) {
-            mApp.getService().subscribe(topics, ctx);
-        }
-    }
-
-    public synchronized void unsubscribe(final String[] topics) {
-        unsubscribe(topics, null);
-    }
-
-    public synchronized void publish(String topic, byte[] payload, int qos, boolean retained, Serializable sessid) {
-        if (isConnected()) {
-            mApp.getService().publish(topic, payload, qos, retained, sessid);
-        }
-    }
-
-    public synchronized void publish(String topic, byte[] payload, int qos, boolean retained) {
-        publish(topic, payload, qos, retained, null);
-    }
-
-    // messaging event handler class
-    private static class MessagingEventHandler extends Handler {
-        private final Node mMsgr;
-        private final NodewoxService.EventType[] etypes = NodewoxService.EventType.values();
-
-        public MessagingEventHandler(Node msgr) {
-            mMsgr = msgr;
+            case ACTION_SET_PARAM:
+                if (msg.getParamsCount() > 0) {
+                    for (Map.Entry<String, NodeTalk.Variant> pair : msg.getParamsMap().entrySet()) {
+                        NodeParam p = getParam(pair.getKey());
+                        if (p != null) {
+                            Object v = Utils.getValueFromVariant(pair.getValue());
+                            if (v != null) {
+                                if (p.setValue(v)) {
+                                    acktype = NodeTalk.Response.AckType.ACK_OK;
+                                    check_param = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
         }
 
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
+        if (acktype != null) {
+            NodeTalk.Response.Builder b = NodeTalk.Response.newBuilder();
+            b.setAcktype(acktype);
 
-            String ctx = null;
-            String error = null;  // null means no error
-
-            Bundle bundle = msg.getData();
-            if (bundle != null) {
-                if (bundle.containsKey("context"))
-                    ctx = (String) bundle.getSerializable("context");
-
-                if (bundle.containsKey("error"))
-                    error = bundle.getString("error");
+            if (check_param && !mParams.isEmpty()) {
+                for (Map.Entry<String, NodeParam> pair : mParams.entrySet())
+                    b.putParams(pair.getKey(), Utils.makeVariant(pair.getValue().getValue()));
             }
 
-            // check event type
-            NodewoxService.EventType etype;
-            if (msg.what >= 0 && msg.what < etypes.length)
-                etype = etypes[msg.what];
-            else
-                etype = NodewoxService.EventType.UNKOWN;
+            res.put("/NX/" + getID() + "/r", b.build());
+        }
 
-            switch (etype) {
-                case CONNECTING:
-                    mMsgr.onConnecting(ctx);
-                    break;
-
-                case CONNECT_SUCCESS:
-                    mMsgr.mIsConnected = true;
-                    mMsgr.checkConnection(false);
-                    mMsgr.onConnected(ctx);
-                    break;
-
-                case CONNECT_FAIL:
-                    mMsgr.mIsConnected = false;
-                    mMsgr.checkConnection(true);
-                    mMsgr.onConnectFail(ctx, error);
-                    break;
-
-                case CONNECT_CLOSE:
-                    mMsgr.mIsConnected = false;
-                    mMsgr.checkConnection(false);
-                    mMsgr.onDisconnected(ctx);
-                    break;
-
-                case CONNECT_LOST:
-                    mMsgr.mIsConnected = false;
-                    mMsgr.checkConnection(true);
-                    mMsgr.onConnectionLost(ctx, error);
-                    break;
-
-                case SUB_SUCCESS:
-                case SUB_FAIL:
-                    String[] topics = null;
-                    if (bundle != null && bundle.containsKey("topics"))
-                        topics = bundle.getStringArray("topics");
-                    mMsgr.onSubscribe(ctx, topics, error);
-                    break;
-
-                case UNSUB_SUCCESS:
-                case UNSUB_FAIL:
-                    String[] t2 = null;
-                    if (bundle != null && bundle.containsKey("topics"))
-                        t2 = bundle.getStringArray("topics");
-                    mMsgr.onUnsubscribe(ctx, t2, error);
-                    break;
-
-                case PUB_COMPLETE:
-                case PUB_FAIL:
-                    mMsgr.onPublish(ctx, error);
-                    break;
-
-                case MESSAGE:
-                    String topic = bundle.getString("topic");
-                    mMsgr.onMessage(
-                            topic,
-                            bundle.getByteArray("payload"),
-                            bundle.getInt("qos"),
-                            bundle.getBoolean("duplicate"),
-                            bundle.getBoolean("retained"));
-                    break;
-
-                default:
-                    mMsgr.handleUserEvent(msg.what, bundle);
+        // request to children
+        if (msg.getChildrenCount() > 0) {
+            for (Integer nid : msg.getChildrenList()) {
+                Node n = getChild(nid);
+                if (n != null) {
+                    Map<String, NodeTalk.Response> res2 = n.handleRequest(msg);
+                    if (res2 != null)
+                        res.putAll(res2);
+                }
             }
         }
+
+        return res;
     }
+
+    public enum NodeType {THING, CHANNEL, USER, UNKNOWN}
+
+    public enum DataType {ANY, INT, FLOAT, STRING, BOOL, BIN}
 
 }

@@ -5,87 +5,77 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.HttpURLConnection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 public abstract class Thing extends Node {
 
-    protected final Map<String, Channel> channels = new HashMap<>();
+    private String mSecret = null;
 
-    public Thing(NodewoxApplication app) {
-        super(app);
+    public Thing(NxApplication app, String key) {
+        super(app, key);
+        mNodeType = NodeType.THING;
     }
 
-    public abstract JSONObject asJSON();
+    protected abstract boolean loadConfig();
 
-    @Override
-    public boolean isThing() {
-        return true;
+    protected abstract void saveConfig(JSONObject data);
+
+    public String getSecret() {
+        return mSecret;
     }
 
-    @Override
+    public void setSecret(String v) {
+        mSecret = v;
+    }
+
     public boolean isRegistered() {
-        return mKey != null && mKey.length() > 0 && mSecret != null && mCertP12 != null;
+        if (this instanceof MessageSensible) {
+            String k = getKey();
+            Messenger mgr = ((MessageSensible) this).getMessenger();
+            return k != null && k.length() > 0 && mgr.getCert() != null && mgr.getCertPass() != null;
+        } else
+            return false;
     }
 
-    public Map<String, Channel> getChannels() {
-        return channels;
+    @Override
+    public void reset() {
+        super.reset();
+        mSecret = null;
     }
 
-    public Channel getChannelByKey(String key) {
-        return channels.get(key);
+    @Override
+    public JSONObject asJSON() throws JSONException {
+        JSONObject res = super.asJSON();
+        if (mSecret != null)
+            res.put("secret", mSecret);
+        return res;
     }
 
-    public Channel getChannelByID(int id) {
-        if (id > 0) {
-            for (Channel ch : channels.values()) {
-                if (ch.getID() == id)
-                    return ch;
-            }
+    @Override
+    protected void configure(JSONObject data) throws JSONException {
+        super.configure(data);
+        if (!data.isNull("mqtt") && this instanceof MessageSensible) {
+            Messenger mgr = ((MessageSensible) this).getMessenger();
+            mgr.setMqttURI(data.getString("mqtt"));
         }
-        return null;
-    }
-
-    protected boolean setProfile(JSONObject data) {
-        try {
-            mID = data.getInt("id");
-            if (data.has("mqtt"))
-                setMqttURI(data.getString("mqtt"));
-
-            // setup channel id/param
-            if (data.has("channels")) {
-                JSONObject chans = data.getJSONObject("channels");
-                Iterator<String> it = chans.keys();
-                while (it.hasNext()) {
-                    String key = it.next();
-                    Channel ch = getChannelByKey(key);
-                    if (ch != null) {
-                        JSONObject vals = chans.getJSONObject(key);
-                        ch.setID(vals.getInt("id"));
-                        ch.config(vals);
-                    }
-                }
-            }
-
-            return true;
-
-        } catch (JSONException e) {
-            Log.e("nodewox", e.getMessage());
-        }
-
-        return false;
     }
 
     public void register(String username, String password, final ResponseListener callback) {
         if (mRest != null) {
-            JSONObject o = asJSON();
-            if (mKey == null || o == null) {
-                callback.onFail(-1, "not a thing");
+            if (getKey() == null) {
+                callback.onFail(-1, "thing ID is missing");
                 return;
             }
-            byte[] data = o.toString().getBytes();
+
+            byte[] data;
+            try {
+                JSONObject o = asJSON();
+                data = o.toString().getBytes();
+            } catch (JSONException e) {
+                Log.e("nodewox/thing/register", e.getMessage());
+                callback.onFail(-1, e.getMessage());
+                return;
+            }
 
             HashMap<String, String> headers = new HashMap<>();
             headers.put("authorization", "USERPW " + username + "\t" + password);
@@ -110,12 +100,12 @@ public abstract class Thing extends Node {
                 @Override
                 public void onSuccess(JSONObject resp) {
                     try {
-                        resp.put("key", mKey);
+                        resp.put("key", getKey());
                         resp.put("secret", mSecret);
-                        loadConfig();
                         callback.onSuccess(resp);
                     } catch (JSONException e) {
-                        e.printStackTrace();
+                        Log.e("nodewox/thing/register", e.getMessage());
+                        callback.onFail(-1, e.getMessage());
                     }
                 }
 
@@ -133,13 +123,15 @@ public abstract class Thing extends Node {
             return;
         }
 
+        Messenger mgr = ((MessageSensible) this).getMessenger();
+
         if (mRest != null) {
             HashMap<String, String> headers = new HashMap<>();
-            headers.put("authorization", "CERT " + mSecret);
+            headers.put("authorization", "CERT " + mgr.getCertPass());
             headers.put("x-requested-with", "XMLHttpRequest");
             headers.put("charset", "utf-8");
 
-            mRest.setClientCert(getCert(), getSecret());
+            mRest.setClientCert(mgr.getCert(), mgr.getCertPass());
             mRest.get("thing/profile", headers, new RestResponseListener() {
                 @Override
                 public void onResponse(final int status, final byte[] resp) {
@@ -163,9 +155,13 @@ public abstract class Thing extends Node {
 
                 @Override
                 public void onSuccess(JSONObject resp) {
-                    Log.v("nodewox", "response " + resp.toString());
-                    setProfile(resp);
-                    callback.onSuccess(resp);
+                    try {
+                        configure(resp);
+                        callback.onSuccess(resp);
+                    } catch (JSONException e) {
+                        Log.e("nodewox/thing/configure", e.getMessage());
+                        callback.onFail(-1, "cannot configure thing");
+                    }
                 }
 
                 @Override

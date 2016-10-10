@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 import javax.net.SocketFactory;
 
-public abstract class NodewoxService extends Service {
+public abstract class NxService extends Service {
 
     // service actions
     public static final String ACTION_CONNECT = "connect";
@@ -36,9 +36,10 @@ public abstract class NodewoxService extends Service {
     public static final String ACTION_SUBSCRIBE = "subscribe";
     public static final String ACTION_UNSUBSCRIBE = "unsubscribe";
 
-    private NodewoxApplication mApp = null;
+    private NxApplication mApp = null;
+    private Messenger messenger = null;
+    private MessageSensible msgnode = null;
     private MqttAsyncClient mMqttCli = null;
-
     private NetworkType mNetworkType = NetworkType.NONE;
 
     // network state change listener
@@ -77,17 +78,6 @@ public abstract class NodewoxService extends Service {
     // return service binder
     protected abstract IBinder getBinder();
 
-    // mqtt server url
-    public abstract String getMqttAddr();
-
-    protected boolean onMqttBeforeConnect() {
-        return true;  // returns false to prevent connect
-    }
-
-    protected boolean onMqttBeforeDisconnect() {
-        return true;  // returns false to prevent disconnect
-    }
-
     @Override
     public IBinder onBind(Intent arg0) {
         return getBinder();
@@ -97,7 +87,13 @@ public abstract class NodewoxService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        mApp = (NodewoxApplication) getApplication();
+        mApp = (NxApplication) getApplication();
+        if (mApp.getRootNode() instanceof MessageSensible) {
+            msgnode = (MessageSensible) mApp.getRootNode();
+            messenger = msgnode.getMessenger();
+            assert (messenger != null) : "RootNode returns a null messengers";
+        }
+
         IntentFilter mFilter = new IntentFilter();
         mFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         registerReceiver(mReceiver, mFilter);
@@ -187,64 +183,13 @@ public abstract class NodewoxService extends Service {
         return mNetworkType;
     }
 
-    protected String getMqttClientId() {
-        return "";
-    }
-
-    protected boolean isMqttClear() {
-        return true;
-    }
-
-    protected String getMqttUsername() {
-        return "";
-    }
-
-    protected String getMqttPassword() {
-        return "";
-    }
-
-    // get trust ca
-    protected byte[] getMqttCA() {
-        return null;
-    }
-
-    protected String getMqttCAPass() {
-        return "";
-    }
-
-    // return client cert in pkcs12 format
-    protected byte[] getMqttCert() {
-        return null;
-    }
-
-    // client cert password
-    protected String getMqttCertPass() {
-        return "";
-    }
-
-    protected int getMqttKeepAlive() {
-        return 60;
-    }
-
-    protected String getMqttWill() {
-        return "";
-    }
-
-    protected byte[] getMqttWillPayload() {
-        return "".getBytes();
-    }
-
-    protected int getMqttWillQos() {
-        return 0;
-    }
-
     protected void onNetworkChange() {
         switch (mNetworkType) {
             case WIFI:
             case MOBILE:
                 // network available, try connect
                 Log.v("nodewox/servce", "network available");
-                if (getMqttAddr().length() > 0)
+                if (messenger.getMqttURI().length() > 0)
                     connect();
                 break;
             case NONE:
@@ -255,8 +200,9 @@ public abstract class NodewoxService extends Service {
 
     // emit mqtt event
     private synchronized void _event(EventType eventType, Bundle data, Object ctx, Throwable error) {
-        if (mApp.getNode() != null) {
-            Handler h = mApp.getNode().getEventHandler();
+        Node node = mApp.getRootNode();
+        if (node instanceof MessageSensible) {
+            Handler h = ((MessageSensible) node).getMessenger();
             if (ctx != null) {
                 if (data == null)
                     data = new Bundle();
@@ -283,23 +229,22 @@ public abstract class NodewoxService extends Service {
             return true;  // we are already connected
         }
 
-        if (getMqttAddr().length() == 0) {
+        if (messenger.getMqttURI().length() == 0) {
             return false;  // invalid addr
         }
 
-        if (!onMqttBeforeConnect()) {
-            return false;  // connect prevented
-        }
+        msgnode.onBeforeConnect();
 
         _event(EventType.CONNECTING, null, null, null);
 
         // setup connect options
         MqttConnectOptions opts = new MqttConnectOptions();
-        String username = getMqttUsername();
-        String password = getMqttPassword();
-        String cid = getMqttClientId();
+
+        String cid = messenger.getMqttClientId();
         if (cid == null) cid = "";
 
+        String username = messenger.getUsername();
+        String password = messenger.getPassword();
         if (username.length() > 0) {
             opts.setUserName(username);
             opts.setPassword(password.toCharArray());
@@ -308,22 +253,24 @@ public abstract class NodewoxService extends Service {
         if (cid.length() == 0)
             opts.setCleanSession(true);
         else
-            opts.setCleanSession(isMqttClear());
+            opts.setCleanSession(messenger.isMqttClear());
 
-        opts.setKeepAliveInterval(getMqttKeepAlive());
+        opts.setKeepAliveInterval(messenger.getMqttKeepAlive());
 
-        String will = getMqttWill();
-        if (will != null && will.length() > 0) {
-            opts.setWill(will, getMqttWillPayload(), getMqttWillQos(), false);
-        }
+        String will = messenger.getMqttWillTopic();
+        if (will != null && will.length() > 0)
+            opts.setWill(will, messenger.getMqttWillPayload(), messenger.getMqttWillQos(), false);
 
-        SocketFactory sf = Utils.makeSSLSocketFactory(getMqttCA(), getMqttCAPass(), getMqttCert(), getMqttCertPass());
+        SocketFactory sf = Utils.makeSSLSocketFactory(
+                messenger.getCA(), messenger.getCAPass(),
+                messenger.getCert(), messenger.getCertPass()
+        );
         if (sf != null)
             opts.setSocketFactory(sf);
 
         // create mqtt client
         try {
-            mMqttCli = new MqttAsyncClient(getMqttAddr(), cid, new MemoryPersistence());
+            mMqttCli = new MqttAsyncClient(messenger.getMqttURI(), cid, new MemoryPersistence());
         } catch (MqttException e) {
             mMqttCli = null;
             _event(EventType.CONNECT_FAIL, null, null, e);
@@ -356,7 +303,8 @@ public abstract class NodewoxService extends Service {
 
     public synchronized void disconnect() {
         if (mMqttCli != null) {
-            if (mMqttCli.isConnected() && onMqttBeforeDisconnect()) {
+            if (mMqttCli.isConnected()) {
+                msgnode.onBeforeDisconnect();
                 try {
                     mMqttCli.disconnect();
                     mMqttCli.close();
@@ -512,9 +460,9 @@ public abstract class NodewoxService extends Service {
     }
 
     private static class LocalMqttCallback implements MqttCallback {
-        private final NodewoxService mCtx;
+        private final NxService mCtx;
 
-        public LocalMqttCallback(NodewoxService ctx) {
+        public LocalMqttCallback(NxService ctx) {
             mCtx = ctx;
         }
 

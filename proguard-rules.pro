@@ -20,3 +20,6 @@
 -dontwarn org.nodewox.client.**
 -keep class org.nodewox.client.** {*; }
 -keep class org.eclipse.paho.client.** {*; }
+
+-dontwarn com.google.protobuf.**
+-keep class com.google.protobuf.** {*; }

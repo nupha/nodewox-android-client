@@ -5388,7 +5388,7 @@ public final class NodeTalk {
 
     /**
      * <pre>
-     * from node-id
+     * origin of packet (source node id)
      * </pre>
      *
      * <code>optional uint32 src = 1;</code>
@@ -5397,21 +5397,12 @@ public final class NodeTalk {
 
     /**
      * <pre>
-     * from group
+     * group of packet
      * </pre>
      *
      * <code>optional uint32 gid = 2;</code>
      */
     int getGid();
-
-    /**
-     * <code>optional .thinese.Variant var_val = 5;</code>
-     */
-    org.nodewox.client.NodeTalk.Variant getVarVal();
-    /**
-     * <code>optional .thinese.Variant var_val = 5;</code>
-     */
-    org.nodewox.client.NodeTalk.VariantOrBuilder getVarValOrBuilder();
 
     /**
      * <code>optional .thinese.IntArray int_array = 6;</code>
@@ -5522,20 +5513,6 @@ public final class NodeTalk {
             case 16: {
 
               gid_ = input.readUInt32();
-              break;
-            }
-            case 42: {
-              org.nodewox.client.NodeTalk.Variant.Builder subBuilder = null;
-              if (dataCase_ == 5) {
-                subBuilder = ((org.nodewox.client.NodeTalk.Variant) data_).toBuilder();
-              }
-              data_ =
-                  input.readMessage(org.nodewox.client.NodeTalk.Variant.parser(), extensionRegistry);
-              if (subBuilder != null) {
-                subBuilder.mergeFrom((org.nodewox.client.NodeTalk.Variant) data_);
-                data_ = subBuilder.buildPartial();
-              }
-              dataCase_ = 5;
               break;
             }
             case 50: {
@@ -5649,7 +5626,6 @@ public final class NodeTalk {
     private java.lang.Object data_;
     public enum DataCase
         implements com.google.protobuf.Internal.EnumLite {
-      VAR_VAL(5),
       INT_ARRAY(6),
       NUM_ARRAY(7),
       STR_ARRAY(8),
@@ -5671,7 +5647,6 @@ public final class NodeTalk {
 
       public static DataCase forNumber(int value) {
         switch (value) {
-          case 5: return VAR_VAL;
           case 6: return INT_ARRAY;
           case 7: return NUM_ARRAY;
           case 8: return STR_ARRAY;
@@ -5697,7 +5672,7 @@ public final class NodeTalk {
     private int src_;
     /**
      * <pre>
-     * from node-id
+     * origin of packet (source node id)
      * </pre>
      *
      * <code>optional uint32 src = 1;</code>
@@ -5710,33 +5685,13 @@ public final class NodeTalk {
     private int gid_;
     /**
      * <pre>
-     * from group
+     * group of packet
      * </pre>
      *
      * <code>optional uint32 gid = 2;</code>
      */
     public int getGid() {
       return gid_;
-    }
-
-    public static final int VAR_VAL_FIELD_NUMBER = 5;
-    /**
-     * <code>optional .thinese.Variant var_val = 5;</code>
-     */
-    public org.nodewox.client.NodeTalk.Variant getVarVal() {
-      if (dataCase_ == 5) {
-         return (org.nodewox.client.NodeTalk.Variant) data_;
-      }
-      return org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
-    }
-    /**
-     * <code>optional .thinese.Variant var_val = 5;</code>
-     */
-    public org.nodewox.client.NodeTalk.VariantOrBuilder getVarValOrBuilder() {
-      if (dataCase_ == 5) {
-         return (org.nodewox.client.NodeTalk.Variant) data_;
-      }
-      return org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
     }
 
     public static final int INT_ARRAY_FIELD_NUMBER = 6;
@@ -5877,9 +5832,6 @@ public final class NodeTalk {
       if (gid_ != 0) {
         output.writeUInt32(2, gid_);
       }
-      if (dataCase_ == 5) {
-        output.writeMessage(5, (org.nodewox.client.NodeTalk.Variant) data_);
-      }
       if (dataCase_ == 6) {
         output.writeMessage(6, (org.nodewox.client.NodeTalk.IntArray) data_);
       }
@@ -5912,10 +5864,6 @@ public final class NodeTalk {
       if (gid_ != 0) {
         size += com.google.protobuf.CodedOutputStream
           .computeUInt32Size(2, gid_);
-      }
-      if (dataCase_ == 5) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(5, (org.nodewox.client.NodeTalk.Variant) data_);
       }
       if (dataCase_ == 6) {
         size += com.google.protobuf.CodedOutputStream
@@ -5965,10 +5913,6 @@ public final class NodeTalk {
           other.getDataCase());
       if (!result) return false;
       switch (dataCase_) {
-        case 5:
-          result = result && getVarVal()
-              .equals(other.getVarVal());
-          break;
         case 6:
           result = result && getIntArray()
               .equals(other.getIntArray());
@@ -6011,10 +5955,6 @@ public final class NodeTalk {
       hash = (37 * hash) + GID_FIELD_NUMBER;
       hash = (53 * hash) + getGid();
       switch (dataCase_) {
-        case 5:
-          hash = (37 * hash) + VAR_VAL_FIELD_NUMBER;
-          hash = (53 * hash) + getVarVal().hashCode();
-          break;
         case 6:
           hash = (37 * hash) + INT_ARRAY_FIELD_NUMBER;
           hash = (53 * hash) + getIntArray().hashCode();
@@ -6194,13 +6134,6 @@ public final class NodeTalk {
         org.nodewox.client.NodeTalk.Packet result = new org.nodewox.client.NodeTalk.Packet(this);
         result.src_ = src_;
         result.gid_ = gid_;
-        if (dataCase_ == 5) {
-          if (varValBuilder_ == null) {
-            result.data_ = data_;
-          } else {
-            result.data_ = varValBuilder_.build();
-          }
-        }
         if (dataCase_ == 6) {
           if (intArrayBuilder_ == null) {
             result.data_ = data_;
@@ -6292,10 +6225,6 @@ public final class NodeTalk {
           setGid(other.getGid());
         }
         switch (other.getDataCase()) {
-          case VAR_VAL: {
-            mergeVarVal(other.getVarVal());
-            break;
-          }
           case INT_ARRAY: {
             mergeIntArray(other.getIntArray());
             break;
@@ -6368,7 +6297,7 @@ public final class NodeTalk {
       private int src_ ;
       /**
        * <pre>
-       * from node-id
+       * origin of packet (source node id)
        * </pre>
        *
        * <code>optional uint32 src = 1;</code>
@@ -6378,7 +6307,7 @@ public final class NodeTalk {
       }
       /**
        * <pre>
-       * from node-id
+       * origin of packet (source node id)
        * </pre>
        *
        * <code>optional uint32 src = 1;</code>
@@ -6391,7 +6320,7 @@ public final class NodeTalk {
       }
       /**
        * <pre>
-       * from node-id
+       * origin of packet (source node id)
        * </pre>
        *
        * <code>optional uint32 src = 1;</code>
@@ -6406,7 +6335,7 @@ public final class NodeTalk {
       private int gid_ ;
       /**
        * <pre>
-       * from group
+       * group of packet
        * </pre>
        *
        * <code>optional uint32 gid = 2;</code>
@@ -6416,7 +6345,7 @@ public final class NodeTalk {
       }
       /**
        * <pre>
-       * from group
+       * group of packet
        * </pre>
        *
        * <code>optional uint32 gid = 2;</code>
@@ -6429,7 +6358,7 @@ public final class NodeTalk {
       }
       /**
        * <pre>
-       * from group
+       * group of packet
        * </pre>
        *
        * <code>optional uint32 gid = 2;</code>
@@ -6439,136 +6368,6 @@ public final class NodeTalk {
         gid_ = 0;
         onChanged();
         return this;
-      }
-
-      private com.google.protobuf.SingleFieldBuilderV3<
-          org.nodewox.client.NodeTalk.Variant, org.nodewox.client.NodeTalk.Variant.Builder, org.nodewox.client.NodeTalk.VariantOrBuilder> varValBuilder_;
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public org.nodewox.client.NodeTalk.Variant getVarVal() {
-        if (varValBuilder_ == null) {
-          if (dataCase_ == 5) {
-            return (org.nodewox.client.NodeTalk.Variant) data_;
-          }
-          return org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
-        } else {
-          if (dataCase_ == 5) {
-            return varValBuilder_.getMessage();
-          }
-          return org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
-        }
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public Builder setVarVal(org.nodewox.client.NodeTalk.Variant value) {
-        if (varValBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          data_ = value;
-          onChanged();
-        } else {
-          varValBuilder_.setMessage(value);
-        }
-        dataCase_ = 5;
-        return this;
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public Builder setVarVal(
-          org.nodewox.client.NodeTalk.Variant.Builder builderForValue) {
-        if (varValBuilder_ == null) {
-          data_ = builderForValue.build();
-          onChanged();
-        } else {
-          varValBuilder_.setMessage(builderForValue.build());
-        }
-        dataCase_ = 5;
-        return this;
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public Builder mergeVarVal(org.nodewox.client.NodeTalk.Variant value) {
-        if (varValBuilder_ == null) {
-          if (dataCase_ == 5 &&
-              data_ != org.nodewox.client.NodeTalk.Variant.getDefaultInstance()) {
-            data_ = org.nodewox.client.NodeTalk.Variant.newBuilder((org.nodewox.client.NodeTalk.Variant) data_)
-                .mergeFrom(value).buildPartial();
-          } else {
-            data_ = value;
-          }
-          onChanged();
-        } else {
-          if (dataCase_ == 5) {
-            varValBuilder_.mergeFrom(value);
-          }
-          varValBuilder_.setMessage(value);
-        }
-        dataCase_ = 5;
-        return this;
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public Builder clearVarVal() {
-        if (varValBuilder_ == null) {
-          if (dataCase_ == 5) {
-            dataCase_ = 0;
-            data_ = null;
-            onChanged();
-          }
-        } else {
-          if (dataCase_ == 5) {
-            dataCase_ = 0;
-            data_ = null;
-          }
-          varValBuilder_.clear();
-        }
-        return this;
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public org.nodewox.client.NodeTalk.Variant.Builder getVarValBuilder() {
-        return getVarValFieldBuilder().getBuilder();
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      public org.nodewox.client.NodeTalk.VariantOrBuilder getVarValOrBuilder() {
-        if ((dataCase_ == 5) && (varValBuilder_ != null)) {
-          return varValBuilder_.getMessageOrBuilder();
-        } else {
-          if (dataCase_ == 5) {
-            return (org.nodewox.client.NodeTalk.Variant) data_;
-          }
-          return org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
-        }
-      }
-      /**
-       * <code>optional .thinese.Variant var_val = 5;</code>
-       */
-      private com.google.protobuf.SingleFieldBuilderV3<
-          org.nodewox.client.NodeTalk.Variant, org.nodewox.client.NodeTalk.Variant.Builder, org.nodewox.client.NodeTalk.VariantOrBuilder> 
-          getVarValFieldBuilder() {
-        if (varValBuilder_ == null) {
-          if (!(dataCase_ == 5)) {
-            data_ = org.nodewox.client.NodeTalk.Variant.getDefaultInstance();
-          }
-          varValBuilder_ = new com.google.protobuf.SingleFieldBuilderV3<
-              org.nodewox.client.NodeTalk.Variant, org.nodewox.client.NodeTalk.Variant.Builder, org.nodewox.client.NodeTalk.VariantOrBuilder>(
-                  (org.nodewox.client.NodeTalk.Variant) data_,
-                  getParentForChildren(),
-                  isClean());
-          data_ = null;
-        }
-        dataCase_ = 5;
-        onChanged();;
-        return varValBuilder_;
       }
 
       private com.google.protobuf.SingleFieldBuilderV3<
@@ -10354,35 +10153,35 @@ public final class NodeTalk {
       "ue\030\001 \003(\t\"\031\n\010IntArray\022\r\n\005value\030\001 \003(\003\"\031\n\010N" +
       "umArray\022\r\n\005value\030\001 \003(\001\"\032\n\tBoolArray\022\r\n\005v" +
       "alue\030\001 \003(\010\")\n\tPairArray\022\034\n\005value\030\001 \003(\0132\r",
-      ".thinese.Pair\"\323\002\n\006Packet\022\013\n\003src\030\001 \001(\r\022\013\n" +
-      "\003gid\030\002 \001(\r\022#\n\007var_val\030\005 \001(\0132\020.thinese.Va" +
-      "riantH\000\022&\n\tint_array\030\006 \001(\0132\021.thinese.Int" +
-      "ArrayH\000\022&\n\tnum_array\030\007 \001(\0132\021.thinese.Num" +
-      "ArrayH\000\022&\n\tstr_array\030\010 \001(\0132\021.thinese.Str" +
-      "ArrayH\000\022(\n\nbool_array\030\t \001(\0132\022.thinese.Bo" +
-      "olArrayH\000\022*\n\tvar_array\030\n \001(\0132\025.thinese.V" +
-      "ariantArrayH\000\022(\n\npair_array\030\013 \001(\0132\022.thin" +
-      "ese.PairArrayH\000B\006\n\004dataJ\004\010\003\020\004J\004\010\004\020\005\"\222\003\n\007" +
-      "Request\022+\n\006action\030\001 \001(\0162\033.thinese.Reques",
-      "t.ActionType\022\020\n\010children\030\002 \003(\r\022,\n\006params" +
-      "\030\003 \003(\0132\034.thinese.Request.ParamsEntry\022(\n\004" +
-      "data\030\004 \003(\0132\032.thinese.Request.DataEntry\032?" +
-      "\n\013ParamsEntry\022\013\n\003key\030\001 \001(\t\022\037\n\005value\030\002 \001(" +
-      "\0132\020.thinese.Variant:\0028\001\032=\n\tDataEntry\022\013\n\003" +
-      "key\030\001 \001(\t\022\037\n\005value\030\002 \001(\0132\020.thinese.Varia" +
-      "nt:\0028\001\"p\n\nActionType\022\026\n\022ACTION_CHECK_ALI" +
-      "VE\020\000\022\026\n\022ACTION_CHECK_PARAM\020\001\022\034\n\030ACTION_C" +
-      "HECK_PARAM_ALIVE\020\002\022\024\n\020ACTION_SET_PARAM\020\003" +
-      "\"\343\002\n\010Response\022*\n\007acktype\030\001 \001(\0162\031.thinese",
-      ".Response.AckType\022-\n\006params\030\016 \003(\0132\035.thin" +
-      "ese.Response.ParamsEntry\022)\n\004data\030\017 \003(\0132\033" +
-      ".thinese.Response.DataEntry\032?\n\013ParamsEnt" +
-      "ry\022\013\n\003key\030\001 \001(\t\022\037\n\005value\030\002 \001(\0132\020.thinese" +
-      ".Variant:\0028\001\032=\n\tDataEntry\022\013\n\003key\030\001 \001(\t\022\037" +
-      "\n\005value\030\002 \001(\0132\020.thinese.Variant:\0028\001\"K\n\007A" +
-      "ckType\022\n\n\006ACK_OK\020\000\022\014\n\010ACK_WARN\020\001\022\013\n\007ACK_" +
-      "ERR\020\002\022\014\n\010ACK_DENY\020\003\022\013\n\007ACK_BYE\020\017J\004\010\002\020\016B\036" +
-      "\n\022org.nodewox.clientB\010NodeTalkb\006proto3"
+      ".thinese.Pair\"\264\002\n\006Packet\022\013\n\003src\030\001 \001(\r\022\013\n" +
+      "\003gid\030\002 \001(\r\022&\n\tint_array\030\006 \001(\0132\021.thinese." +
+      "IntArrayH\000\022&\n\tnum_array\030\007 \001(\0132\021.thinese." +
+      "NumArrayH\000\022&\n\tstr_array\030\010 \001(\0132\021.thinese." +
+      "StrArrayH\000\022(\n\nbool_array\030\t \001(\0132\022.thinese" +
+      ".BoolArrayH\000\022*\n\tvar_array\030\n \001(\0132\025.thines" +
+      "e.VariantArrayH\000\022(\n\npair_array\030\013 \001(\0132\022.t" +
+      "hinese.PairArrayH\000B\006\n\004dataJ\004\010\003\020\004J\004\010\004\020\005J\004" +
+      "\010\005\020\006\"\222\003\n\007Request\022+\n\006action\030\001 \001(\0162\033.thine" +
+      "se.Request.ActionType\022\020\n\010children\030\002 \003(\r\022",
+      ",\n\006params\030\003 \003(\0132\034.thinese.Request.Params" +
+      "Entry\022(\n\004data\030\004 \003(\0132\032.thinese.Request.Da" +
+      "taEntry\032?\n\013ParamsEntry\022\013\n\003key\030\001 \001(\t\022\037\n\005v" +
+      "alue\030\002 \001(\0132\020.thinese.Variant:\0028\001\032=\n\tData" +
+      "Entry\022\013\n\003key\030\001 \001(\t\022\037\n\005value\030\002 \001(\0132\020.thin" +
+      "ese.Variant:\0028\001\"p\n\nActionType\022\026\n\022ACTION_" +
+      "CHECK_ALIVE\020\000\022\026\n\022ACTION_CHECK_PARAM\020\001\022\034\n" +
+      "\030ACTION_CHECK_PARAM_ALIVE\020\002\022\024\n\020ACTION_SE" +
+      "T_PARAM\020\003\"\343\002\n\010Response\022*\n\007acktype\030\001 \001(\0162" +
+      "\031.thinese.Response.AckType\022-\n\006params\030\016 \003",
+      "(\0132\035.thinese.Response.ParamsEntry\022)\n\004dat" +
+      "a\030\017 \003(\0132\033.thinese.Response.DataEntry\032?\n\013" +
+      "ParamsEntry\022\013\n\003key\030\001 \001(\t\022\037\n\005value\030\002 \001(\0132" +
+      "\020.thinese.Variant:\0028\001\032=\n\tDataEntry\022\013\n\003ke" +
+      "y\030\001 \001(\t\022\037\n\005value\030\002 \001(\0132\020.thinese.Variant" +
+      ":\0028\001\"K\n\007AckType\022\n\n\006ACK_OK\020\000\022\014\n\010ACK_WARN\020" +
+      "\001\022\013\n\007ACK_ERR\020\002\022\014\n\010ACK_DENY\020\003\022\013\n\007ACK_BYE\020" +
+      "\017J\004\010\002\020\016B\036\n\022org.nodewox.clientB\010NodeTalkb" +
+      "\006proto3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {
@@ -10449,7 +10248,7 @@ public final class NodeTalk {
     internal_static_thinese_Packet_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
         internal_static_thinese_Packet_descriptor,
-        new java.lang.String[] { "Src", "Gid", "VarVal", "IntArray", "NumArray", "StrArray", "BoolArray", "VarArray", "PairArray", "Data", });
+        new java.lang.String[] { "Src", "Gid", "IntArray", "NumArray", "StrArray", "BoolArray", "VarArray", "PairArray", "Data", });
     internal_static_thinese_Request_descriptor =
       getDescriptor().getMessageTypes().get(9);
     internal_static_thinese_Request_fieldAccessorTable = new

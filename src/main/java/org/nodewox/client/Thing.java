@@ -13,7 +13,6 @@ public abstract class Thing extends Node {
 
     public Thing(NxApplication app, String key) {
         super(app, key);
-        mNodeType = NodeType.THING;
     }
 
     protected abstract boolean loadConfig();

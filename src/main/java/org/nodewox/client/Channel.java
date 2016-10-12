@@ -14,7 +14,6 @@ public abstract class Channel extends Node {
         this.flow = flow;
         this.datatype = datatype;
         this.datadim = datatype != datatype.ANY ? dim : 0;
-        mNodeType = NodeType.CHANNEL;
     }
 
     public Channel(Thing thing, String key, FlowDir flow, DataType datatype) {
@@ -22,8 +21,10 @@ public abstract class Channel extends Node {
         this.flow = flow;
         this.datatype = datatype;
         this.datadim = 0;
-        mNodeType = NodeType.CHANNEL;
     }
+
+    // handle incomming packet
+    public abstract void handlePacket(NodeTalk.Packet packet);
 
     public void setDataType(DataType dtype, int dim) {
         datatype = dtype;

@@ -15,6 +15,7 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -195,6 +196,7 @@ public abstract class Messenger extends Handler {
 
         int nid = Integer.valueOf(m.group(1));
         String verb = m.group(2);
+        if (verb == null) verb = "";
         GeneratedMessageV3 msg = null;
 
         try {
@@ -219,14 +221,24 @@ public abstract class Messenger extends Handler {
                     res = ((Node) mMgrNode).handleRequest((NodeTalk.Request) msg);
                     break;
                 case "":
-                    res = ((Node) mMgrNode).handlePacket((NodeTalk.Packet) msg);
+                    if (mMgrNode instanceof Channel)
+                        ((Channel) mMgrNode).handlePacket((NodeTalk.Packet) msg);
                     break;
             }
         } else {
             // match nid to children nodes
             for (Node ch : ((Node) mMgrNode).getChildren()) {
                 if (ch.getID() == nid) {
-                    Map<String, NodeTalk.Response> res2 = ch.handleRequest((NodeTalk.Request) msg);
+                    Map<String, NodeTalk.Response> res2 = null;
+                    switch (verb) {
+                        case "/q":
+                            res2 = ch.handleRequest((NodeTalk.Request) msg);
+                            break;
+                        case "":
+                            if (ch instanceof Channel)
+                                ((Channel) ch).handlePacket((NodeTalk.Packet) msg);
+                            break;
+                    }
                     if (res2 != null)
                         res.putAll(res2);
                     break;

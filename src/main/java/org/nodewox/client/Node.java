@@ -10,19 +10,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static org.nodewox.client.Node.NodeType.UNKNOWN;
-
 public abstract class Node {
 
     // params of node
     protected final Map<String, NodeParam> mParams = new HashMap<>();
     private final NxApplication mApp;
+
     // map of {key:child-node}
     private final HashMap<String, Node> children = new HashMap<>();
 
     private final Node mParent;
-
-    protected NodeType mNodeType = UNKNOWN;
 
     protected String mName = "";
     protected String mComment = "";
@@ -46,15 +43,8 @@ public abstract class Node {
     // called after param value changed
     protected abstract void onParamChanged(final NodeParam param);
 
-    // handle incomming packet
-    public abstract Map<String, NodeTalk.Response> handlePacket(NodeTalk.Packet packet);
-
     public NxApplication getApp() {
         return mApp;
-    }
-
-    public NodeType getNodeType() {
-        return mNodeType;
     }
 
     public Node getParent() {
@@ -300,8 +290,6 @@ public abstract class Node {
 
         return res;
     }
-
-    public enum NodeType {THING, CHANNEL, USER, UNKNOWN}
 
     public enum DataType {ANY, INT, FLOAT, STRING, BOOL, BIN}
 

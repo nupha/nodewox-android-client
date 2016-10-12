@@ -27,11 +27,10 @@ public abstract class Messenger extends Handler {
     // regexp for known topic
     private static final Pattern PAT_KNOWN_TOPIC = Pattern.compile("^/NX/(\\d+)(/q)?$");
 
-    private final MessageSensible mMgrNode;
     private final NxApplication mApp;
+    private final MessageSensible mMgrNode;
     private final NxService.EventType[] etypes = NxService.EventType.values();
 
-    protected String mMqttURI = "";
     private PendingIntent mConnCheckIntent = null;
     private boolean mIsConnected = false;
 
@@ -41,44 +40,27 @@ public abstract class Messenger extends Handler {
         this.mApp = ((Node) mgrNode).getApp();
     }
 
-    public byte[] getCA() {
-        return null;
-    }
+    public abstract String getMqttURI();
 
-    public String getCAPass() {
-        return "";
-    }
+    public abstract boolean setMqttURI(String uri);
 
-    public byte[] getCert() {
-        return null;
-    }
+    public abstract byte[] getCA();
 
-    public String getCertPass() {
-        return "";
-    }
+    public abstract String getCAPass();
 
-    public String getUsername() {
-        return "";
-    }
+    public abstract byte[] getCert();
 
-    public String getPassword() {
-        return "";
-    }
+    public abstract String getCertPass();
 
-    public String getMqttClientId() {
-        return ((Node) mMgrNode).getKey();
-    }
+    public abstract String getUsername();
 
-    public String getMqttWillTopic() {
-        return "/NX/" + ((Node) mMgrNode).getID() + "/r";
-    }
+    public abstract String getPassword();
 
-    public byte[] getMqttWillPayload() {
-        return NodeTalk.Response.newBuilder()
-                .setAcktype(NodeTalk.Response.AckType.ACK_BYE)
-                .build()
-                .toByteArray();
-    }
+    public abstract String getMqttClientId();
+
+    public abstract String getMqttWillTopic();
+
+    public abstract byte[] getMqttWillPayload();
 
     public int getMqttWillQos() {
         return 0;
@@ -86,26 +68,6 @@ public abstract class Messenger extends Handler {
 
     public boolean isMqttClear() {
         return true;
-    }
-
-    public String getMqttURI() {
-        return mMqttURI;
-    }
-
-    public boolean setMqttURI(String auri) {
-        URI uri;
-        try {
-            uri = new URI(auri);
-            mMqttURI = uri.getScheme();
-            if (mMqttURI.equals("mqtts"))
-                mMqttURI = "ssl";
-            mMqttURI += "://" + uri.getHost();
-            mMqttURI += ":" + uri.getPort();
-            return true;
-        } catch (URISyntaxException e) {
-            Log.w("nodewox", "invalid mqtt uri " + auri);
-            return false;
-        }
     }
 
     public int getMqttKeepAlive() {

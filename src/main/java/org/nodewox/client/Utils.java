@@ -175,7 +175,7 @@ public class Utils {
                 if (va.getBinVal().isEmpty())
                     v = null;
                 else
-                    v = va.getBinVal().toByteArray();
+                    v = va.getBinVal();
                 break;
         }
         return v;

@@ -38,7 +38,6 @@ public abstract class NxService extends Service {
 
     private NxApplication mApp = null;
     private Messenger messenger = null;
-    private MessageSensible msgnode = null;
     private MqttAsyncClient mMqttCli = null;
     private NetworkType mNetworkType = NetworkType.NONE;
 
@@ -89,9 +88,9 @@ public abstract class NxService extends Service {
 
         mApp = (NxApplication) getApplication();
         if (mApp.getRootNode() instanceof MessageSensible) {
-            msgnode = (MessageSensible) mApp.getRootNode();
-            messenger = msgnode.getMessenger();
-            assert (messenger != null) : "RootNode returns a null messengers";
+            messenger = ((MessageSensible) mApp.getRootNode()).getMessenger();
+            if (BuildConfig.DEBUG && messenger == null)
+                throw new AssertionError("ERROR: RootNode returned a null messenger");
         }
 
         IntentFilter mFilter = new IntentFilter();
@@ -189,7 +188,7 @@ public abstract class NxService extends Service {
             case MOBILE:
                 // network available, try connect
                 Log.v("nodewox/servce", "network available");
-                if (messenger.getMqttURI().length() > 0)
+                if (messenger.getAddr().length() > 0)
                     connect();
                 break;
             case NONE:
@@ -229,11 +228,11 @@ public abstract class NxService extends Service {
             return true;  // we are already connected
         }
 
-        if (messenger.getMqttURI().length() == 0) {
+        if (messenger.getAddr().length() == 0) {
             return false;  // invalid addr
         }
 
-        msgnode.onBeforeConnect();
+        messenger.onBeforeConnect();
 
         _event(EventType.CONNECTING, null, null, null);
 
@@ -270,7 +269,7 @@ public abstract class NxService extends Service {
 
         // create mqtt client
         try {
-            mMqttCli = new MqttAsyncClient(messenger.getMqttURI(), cid, new MemoryPersistence());
+            mMqttCli = new MqttAsyncClient(messenger.getAddr(), cid, new MemoryPersistence());
         } catch (MqttException e) {
             mMqttCli = null;
             _event(EventType.CONNECT_FAIL, null, null, e);
@@ -304,7 +303,7 @@ public abstract class NxService extends Service {
     public synchronized void disconnect() {
         if (mMqttCli != null) {
             if (mMqttCli.isConnected()) {
-                msgnode.onBeforeDisconnect();
+                messenger.onBeforeDisconnect();
                 try {
                     mMqttCli.disconnect();
                     mMqttCli.close();

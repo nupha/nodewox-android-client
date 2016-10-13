@@ -12,10 +12,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.io.Serializable;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,14 +32,16 @@ public abstract class Messenger extends Handler {
     private boolean mIsConnected = false;
 
     public Messenger(MessageSensible mgrNode) {
-        assert (mgrNode instanceof Node) : "MessageSensible object must be an Node instance";
+        if (BuildConfig.DEBUG && !(mgrNode instanceof Node))
+            throw new AssertionError("MessageSensible object must be an Node instance");
+
         this.mMgrNode = mgrNode;
         this.mApp = ((Node) mgrNode).getApp();
     }
 
-    public abstract String getMqttURI();
+    public abstract String getAddr();
 
-    public abstract boolean setMqttURI(String uri);
+    public abstract boolean setAddr(String uri);
 
     public abstract byte[] getCA();
 
@@ -61,6 +60,41 @@ public abstract class Messenger extends Handler {
     public abstract String getMqttWillTopic();
 
     public abstract byte[] getMqttWillPayload();
+
+    // handlers
+    public abstract void onBeforeConnect();
+
+    public abstract void onBeforeDisconnect();
+
+    public abstract void onConnecting(Serializable ctx);
+
+    public abstract void onConnected(Serializable ctx);
+
+    public abstract void onConnectFail(Serializable ctx, String error);
+
+    public abstract void onDisconnected(Serializable ctx);
+
+    public abstract void onConnectionLost(Serializable ctx, String error);
+
+    public abstract void onSubscribe(Serializable ctx, String[] topics, String error);
+
+    public abstract void onUnsubscribe(Serializable ctx, String[] topics, String error);
+
+    public abstract void onPublish(Serializable ctx, String error);
+
+    public abstract void onMessage(String topic, byte[] payload, int qos, final boolean duplicate, boolean retained);
+
+
+    public NxApplication getApp() {
+        return mApp;
+    }
+
+    public Node getNode() {
+        return (Node) mMgrNode;
+    }
+
+    public void handleMessengerEvent(int event, Bundle data) {
+    }
 
     public int getMqttWillQos() {
         return 0;
@@ -152,7 +186,7 @@ public abstract class Messenger extends Handler {
     private void processMessage(String topic, byte[] payload, int qos, boolean dup, boolean retain) {
         Matcher m = PAT_KNOWN_TOPIC.matcher(topic);
         if (!m.matches()) {
-            mMgrNode.onMessage(topic, payload, qos, dup, retain);
+            onMessage(topic, payload, qos, dup, retain);
             return;
         }
 
@@ -240,31 +274,31 @@ public abstract class Messenger extends Handler {
 
         switch (etype) {
             case CONNECTING:
-                mMgrNode.onConnecting(ctx);
+                onConnecting(ctx);
                 break;
 
             case CONNECT_SUCCESS:
                 mIsConnected = true;
                 checkConnection(false);
-                mMgrNode.onConnected(ctx);
+                onConnected(ctx);
                 break;
 
             case CONNECT_FAIL:
                 mIsConnected = false;
                 checkConnection(true);
-                mMgrNode.onConnectFail(ctx, error);
+                onConnectFail(ctx, error);
                 break;
 
             case CONNECT_CLOSE:
                 mIsConnected = false;
                 checkConnection(false);
-                mMgrNode.onDisconnected(ctx);
+                onDisconnected(ctx);
                 break;
 
             case CONNECT_LOST:
                 mIsConnected = false;
                 checkConnection(true);
-                mMgrNode.onConnectionLost(ctx, error);
+                onConnectionLost(ctx, error);
                 break;
 
             case SUB_SUCCESS:
@@ -272,7 +306,7 @@ public abstract class Messenger extends Handler {
                 String[] topics = null;
                 if (bundle != null && bundle.containsKey("topics"))
                     topics = bundle.getStringArray("topics");
-                mMgrNode.onSubscribe(ctx, topics, error);
+                onSubscribe(ctx, topics, error);
                 break;
 
             case UNSUB_SUCCESS:
@@ -280,12 +314,12 @@ public abstract class Messenger extends Handler {
                 String[] t2 = null;
                 if (bundle != null && bundle.containsKey("topics"))
                     t2 = bundle.getStringArray("topics");
-                mMgrNode.onUnsubscribe(ctx, t2, error);
+                onUnsubscribe(ctx, t2, error);
                 break;
 
             case PUB_COMPLETE:
             case PUB_FAIL:
-                mMgrNode.onPublish(ctx, error);
+                onPublish(ctx, error);
                 break;
 
             case MESSAGE:
@@ -298,7 +332,7 @@ public abstract class Messenger extends Handler {
                 break;
 
             default:
-                mMgrNode.handleMessengerEvent(msg.what, bundle);
+                handleMessengerEvent(msg.what, bundle);
         }
     }
 

@@ -55,7 +55,7 @@ public abstract class Thing extends Node {
         super.configure(data);
         if (!data.isNull("mqtt") && this instanceof MessageSensible) {
             Messenger mgr = ((MessageSensible) this).getMessenger();
-            mgr.setMqttURI(data.getString("mqtt"));
+            mgr.setAddr(data.getString("mqtt"));
         }
     }
 

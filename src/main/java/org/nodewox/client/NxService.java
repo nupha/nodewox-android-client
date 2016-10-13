@@ -232,7 +232,7 @@ public abstract class NxService extends Service {
             return false;  // invalid addr
         }
 
-        messenger.onBeforeConnect();
+        messenger.getNode().onBeforeConnect();
 
         _event(EventType.CONNECTING, null, null, null);
 
@@ -303,7 +303,7 @@ public abstract class NxService extends Service {
     public synchronized void disconnect() {
         if (mMqttCli != null) {
             if (mMqttCli.isConnected()) {
-                messenger.onBeforeDisconnect();
+                messenger.getNode().onBeforeDisconnect();
                 try {
                     mMqttCli.disconnect();
                     mMqttCli.close();

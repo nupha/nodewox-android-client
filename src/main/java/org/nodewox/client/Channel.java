@@ -1,5 +1,6 @@
 package org.nodewox.client;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -56,28 +57,33 @@ public abstract class Channel extends Node {
                 break;
         }
 
+        String dt = "";
         switch (datatype) {
             case ANY:
                 break;
             case INT:
-                res.put("datatype", "int");
+                dt = "int";
                 break;
             case FLOAT:
-                res.put("datatype", "number");
+                dt = "number";
                 break;
             case BOOL:
-                res.put("datatype", "bool");
+                dt = "bool";
                 break;
             case STRING:
-                res.put("datatype", "string");
+                dt = "string";
                 break;
             case BIN:
-                res.put("datatype", "bin");
+                dt = "bin";
                 break;
         }
 
-        if (datadim > 0)
-            res.put("datadim", datadim);
+        if (dt.length() > 0) {
+            JSONArray arr = new JSONArray();
+            arr.put(dt);
+            arr.put(datadim);
+            res.put("datatype", arr);
+        }
 
         return res;
     }

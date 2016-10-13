@@ -7,7 +7,7 @@ public class NodeParam<T extends Object> {
 
     private final Node node;
     private final String key;
-
+    private final T initValue;
     private String name = "";
     private String comment = "";
     private int seq = 0;
@@ -28,6 +28,11 @@ public class NodeParam<T extends Object> {
 
         this.name = name;
         this.value = val;
+        this.initValue = val;
+    }
+
+    public void reset() {
+        value = initValue;
     }
 
     public String getKey() {

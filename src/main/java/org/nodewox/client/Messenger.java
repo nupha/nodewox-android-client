@@ -25,7 +25,7 @@ public abstract class Messenger extends Handler {
     private static final Pattern PAT_KNOWN_TOPIC = Pattern.compile("^/NX/(\\d+)(/q)?$");
 
     private final NxApplication mApp;
-    private final MessageSensible mMgrNode;
+    private final MessageSensible theNode;
     private final NxService.EventType[] etypes = NxService.EventType.values();
 
     private PendingIntent mConnCheckIntent = null;
@@ -35,7 +35,7 @@ public abstract class Messenger extends Handler {
         if (BuildConfig.DEBUG && !(mgrNode instanceof Node))
             throw new AssertionError("MessageSensible object must be an Node instance");
 
-        this.mMgrNode = mgrNode;
+        this.theNode = mgrNode;
         this.mApp = ((Node) mgrNode).getApp();
     }
 
@@ -61,36 +61,13 @@ public abstract class Messenger extends Handler {
 
     public abstract byte[] getMqttWillPayload();
 
-    // handlers
-    public abstract void onBeforeConnect();
-
-    public abstract void onBeforeDisconnect();
-
-    public abstract void onConnecting(Serializable ctx);
-
-    public abstract void onConnected(Serializable ctx);
-
-    public abstract void onConnectFail(Serializable ctx, String error);
-
-    public abstract void onDisconnected(Serializable ctx);
-
-    public abstract void onConnectionLost(Serializable ctx, String error);
-
-    public abstract void onSubscribe(Serializable ctx, String[] topics, String error);
-
-    public abstract void onUnsubscribe(Serializable ctx, String[] topics, String error);
-
-    public abstract void onPublish(Serializable ctx, String error);
-
-    public abstract void onMessage(String topic, byte[] payload, int qos, final boolean duplicate, boolean retained);
-
 
     public NxApplication getApp() {
         return mApp;
     }
 
-    public Node getNode() {
-        return (Node) mMgrNode;
+    public MessageSensible getNode() {
+        return theNode;
     }
 
     public void handleMessengerEvent(int event, Bundle data) {
@@ -186,7 +163,7 @@ public abstract class Messenger extends Handler {
     private void processMessage(String topic, byte[] payload, int qos, boolean dup, boolean retain) {
         Matcher m = PAT_KNOWN_TOPIC.matcher(topic);
         if (!m.matches()) {
-            onMessage(topic, payload, qos, dup, retain);
+            theNode.onMessage(topic, payload, qos, dup, retain);
             return;
         }
 
@@ -210,20 +187,20 @@ public abstract class Messenger extends Handler {
         }
 
         Map<String, NodeTalk.Response> res = new HashMap<>();
-        if (nid == ((Node) mMgrNode).getID()) {
+        if (nid == ((Node) theNode).getID()) {
             // for this node
             switch (verb) {
                 case "/q":
-                    res = ((Node) mMgrNode).handleRequest((NodeTalk.Request) msg);
+                    res = ((Node) theNode).handleRequest((NodeTalk.Request) msg);
                     break;
                 case "":
-                    if (mMgrNode instanceof Channel)
-                        ((Channel) mMgrNode).handlePacket((NodeTalk.Packet) msg);
+                    if (theNode instanceof Channel)
+                        ((Channel) theNode).handlePacket((NodeTalk.Packet) msg);
                     break;
             }
         } else {
             // match nid to children nodes
-            for (Node ch : ((Node) mMgrNode).getChildren()) {
+            for (Node ch : ((Node) theNode).getChildren()) {
                 if (ch.getID() == nid) {
                     Map<String, NodeTalk.Response> res2 = null;
                     switch (verb) {
@@ -274,31 +251,31 @@ public abstract class Messenger extends Handler {
 
         switch (etype) {
             case CONNECTING:
-                onConnecting(ctx);
+                theNode.onConnecting(ctx);
                 break;
 
             case CONNECT_SUCCESS:
                 mIsConnected = true;
                 checkConnection(false);
-                onConnected(ctx);
+                theNode.onConnected(ctx);
                 break;
 
             case CONNECT_FAIL:
                 mIsConnected = false;
                 checkConnection(true);
-                onConnectFail(ctx, error);
+                theNode.onConnectFail(ctx, error);
                 break;
 
             case CONNECT_CLOSE:
                 mIsConnected = false;
                 checkConnection(false);
-                onDisconnected(ctx);
+                theNode.onDisconnected(ctx);
                 break;
 
             case CONNECT_LOST:
                 mIsConnected = false;
                 checkConnection(true);
-                onConnectionLost(ctx, error);
+                theNode.onConnectionLost(ctx, error);
                 break;
 
             case SUB_SUCCESS:
@@ -306,7 +283,7 @@ public abstract class Messenger extends Handler {
                 String[] topics = null;
                 if (bundle != null && bundle.containsKey("topics"))
                     topics = bundle.getStringArray("topics");
-                onSubscribe(ctx, topics, error);
+                theNode.onSubscribe(ctx, topics, error);
                 break;
 
             case UNSUB_SUCCESS:
@@ -314,12 +291,12 @@ public abstract class Messenger extends Handler {
                 String[] t2 = null;
                 if (bundle != null && bundle.containsKey("topics"))
                     t2 = bundle.getStringArray("topics");
-                onUnsubscribe(ctx, t2, error);
+                theNode.onUnsubscribe(ctx, t2, error);
                 break;
 
             case PUB_COMPLETE:
             case PUB_FAIL:
-                onPublish(ctx, error);
+                theNode.onPublish(ctx, error);
                 break;
 
             case MESSAGE:

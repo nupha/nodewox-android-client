@@ -36,6 +36,5 @@ android {
 
 dependencies {
     //compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile files('libs/protobuf-java-3.0.2.jar')
     compile files('libs/org.eclipse.paho.client.mqttv3-1.1.0.jar')
 }

@@ -8,11 +8,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-import com.google.protobuf.GeneratedMessageV3;
-import com.google.protobuf.InvalidProtocolBufferException;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -170,59 +169,53 @@ public abstract class Messenger extends Handler {
         int nid = Integer.valueOf(m.group(1));
         String verb = m.group(2);
         if (verb == null) verb = "";
-        GeneratedMessageV3 msg = null;
 
-        try {
-            switch (verb) {
-                case "/q":
-                    msg = NodeTalk.Request.parseFrom(payload);
-                    break;
-                case "":
-                    msg = NodeTalk.Packet.parseFrom(payload);
-                    break;
-            }
-        } catch (InvalidProtocolBufferException e) {
-            Log.w("nodewox/messenger", "invalid message body " + e.getMessage());
-            return;
-        }
-
-        Map<String, NodeTalk.Response> res = new HashMap<>();
+        Node target = null;
         if (nid == ((Node) theNode).getID()) {
-            // for this node
-            switch (verb) {
-                case "/q":
-                    res = ((Node) theNode).handleRequest((NodeTalk.Request) msg);
-                    break;
-                case "":
-                    if (theNode instanceof Channel)
-                        ((Channel) theNode).handlePacket((NodeTalk.Packet) msg);
-                    break;
-            }
+            target = (Node) theNode;
         } else {
-            // match nid to children nodes
             for (Node ch : ((Node) theNode).getChildren()) {
                 if (ch.getID() == nid) {
-                    Map<String, NodeTalk.Response> res2 = null;
-                    switch (verb) {
-                        case "/q":
-                            res2 = ch.handleRequest((NodeTalk.Request) msg);
-                            break;
-                        case "":
-                            if (ch instanceof Channel)
-                                ((Channel) ch).handlePacket((NodeTalk.Packet) msg);
-                            break;
-                    }
-                    if (res2 != null)
-                        res.putAll(res2);
+                    target = ch;
                     break;
                 }
             }
         }
 
-        if (res != null && !res.isEmpty()) {
-            // send response
-            for (Map.Entry<String, NodeTalk.Response> key_res : res.entrySet())
-                publish(key_res.getKey(), key_res.getValue().toByteArray(), 0, false);
+        if (target != null) {
+            Map<String, JSONObject> res = null;
+
+            switch (verb) {
+                case "/q":
+                    JSONObject msg;
+                    if (payload != null && payload.length > 0) {
+                        try {
+                            msg = new JSONObject(new String(payload));
+                        } catch (JSONException e) {
+                            Log.w("nodewox/messenger", "invalid request message");
+                            return;
+                        }
+                    } else
+                        msg = new JSONObject();
+                    res = target.handleRequest(msg);
+                    break;
+
+                case "":
+                    if (target instanceof ActuatorChannel)
+                        ((ActuatorChannel) target).handlePacket(payload);
+                    break;
+            }
+
+            if (res != null && !res.isEmpty()) {
+                for (Map.Entry<String, JSONObject> key_res : res.entrySet()) {
+                    JSONObject x = key_res.getValue();
+                    publish(
+                            key_res.getKey(),
+                            (x != null && x.keys().hasNext()) ? x.toString().getBytes() : null,
+                            0,
+                            false);
+                }
+            }
         }
     }
 

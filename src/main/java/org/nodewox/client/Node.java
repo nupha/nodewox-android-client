@@ -2,12 +2,15 @@ package org.nodewox.client;
 
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 public abstract class Node {
@@ -92,7 +95,8 @@ public abstract class Node {
     }
 
     public void setID(int i) {
-        mID = i;
+        if (i > 0)
+            mID = i;
     }
 
     public String getName() {
@@ -109,6 +113,10 @@ public abstract class Node {
 
     public void setSeq(int v) {
         mSeq = v;
+    }
+
+    public boolean isDisabled() {
+        return mID <= 0;
     }
 
     public <T extends Object> NodeParam<T> addParam(String key, String name, T val) {
@@ -219,71 +227,48 @@ public abstract class Node {
         mRest = rest;
     }
 
-    // handle request message
-    public Map<String, NodeTalk.Response> handleRequest(NodeTalk.Request msg) {
-        if (BuildConfig.DEBUG && msg == null)
-            throw new AssertionError("request message must not be null for handleRequest()");
+    public Map<String, JSONObject> handleRequest(int action, Map<String, Object> params, int[] children) {
+        boolean report_params = action == 1;
 
-        Map<String, NodeTalk.Response> res = new HashMap<>();
-        NodeTalk.Response.AckType acktype = null;
-        boolean check_param = false;
-
-        switch (msg.getAction()) {
-            case ACTION_CHECK_ALIVE:
-                acktype = NodeTalk.Response.AckType.ACK_OK;
-                break;
-
-            case ACTION_CHECK_PARAM:
-                if (!mParams.isEmpty()) {
-                    acktype = NodeTalk.Response.AckType.ACK_OK;
-                    check_param = true;
+        if (params != null && !params.isEmpty()) {
+            // set params
+            for (Map.Entry<String, Object> kv : params.entrySet()) {
+                NodeParam p = getParam(kv.getKey());
+                if (p != null) {
+                    if (p.setValue(kv.getValue()))
+                        report_params = true;
                 }
-                break;
+            }
+        }
 
-            case ACTION_CHECK_PARAM_ALIVE:
-                acktype = NodeTalk.Response.AckType.ACK_OK;
-                if (!mParams.isEmpty())
-                    check_param = true;
-                break;
-
-            case ACTION_SET_PARAM:
-                if (msg.getParamsCount() > 0) {
-                    for (Map.Entry<String, NodeTalk.Variant> pair : msg.getParamsMap().entrySet()) {
-                        NodeParam p = getParam(pair.getKey());
-                        if (p != null) {
-                            Object v = Utils.getValueFromVariant(pair.getValue());
-                            if (v != null) {
-                                if (p.setValue(v)) {
-                                    acktype = NodeTalk.Response.AckType.ACK_OK;
-                                    check_param = true;
-                                }
-                            }
-                        }
+        JSONObject resp = new JSONObject();
+        if (report_params && !mParams.isEmpty()) {
+            try {
+                JSONObject pp = new JSONObject();
+                int cnt = 0;
+                for (NodeParam p : mParams.values()) {
+                    if (p.getFlag() != NodeParam.ParamFlag.STATIC) {
+                        pp.put(p.getKey(), p.getValue());
+                        cnt++;
                     }
                 }
-                break;
-        }
-
-        if (acktype != null) {
-            NodeTalk.Response.Builder b = NodeTalk.Response.newBuilder();
-            b.setAcktype(acktype);
-
-            if (check_param && !mParams.isEmpty()) {
-                for (Map.Entry<String, NodeParam> pair : mParams.entrySet())
-                    b.putParams(pair.getKey(), Utils.makeVariant(pair.getValue().getValue()));
+                if (cnt > 0)
+                    resp.put("params", pp);
+            } catch (JSONException e) {
             }
-
-            res.put("/NX/" + getID() + "/r", b.build());
         }
 
-        // request to children
-        if (msg.getChildrenCount() > 0) {
-            for (Integer nid : msg.getChildrenList()) {
+        Map<String, JSONObject> res = new HashMap<>();
+        res.put("/NX/" + getID() + "/r", resp);
+
+        if (children != null && children.length > 0) {
+            // request into children
+            for (int nid : children) {
                 Node n = getChild(nid);
                 if (n != null) {
-                    Map<String, NodeTalk.Response> res2 = n.handleRequest(msg);
-                    if (res2 != null)
-                        res.putAll(res2);
+                    Map<String, JSONObject> m2 = n.handleRequest(action, null, null);
+                    if (m2 != null)
+                        res.putAll(m2);
                 }
             }
         }
@@ -291,6 +276,59 @@ public abstract class Node {
         return res;
     }
 
-    public enum DataType {ANY, INT, FLOAT, STRING, BOOL, BIN}
+    // handle request message
+    public Map<String, JSONObject> handleRequest(JSONObject req) {
+        int action = 0;
+        if (!req.isNull("action")) {
+            try {
+                action = req.getInt("action");
+            } catch (JSONException e) {
+            }
+        }
+
+        int[] children = null;
+        if (!req.isNull("children")) {
+            try {
+                JSONArray arr = req.getJSONArray("children");
+                children = new int[arr.length()];
+                for (int i = 0; i < arr.length(); i++)
+                    children[i] = arr.getInt(i);
+            } catch (JSONException e) {
+                children = null;
+            }
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        if (!req.isNull("params")) {
+            try {
+                JSONObject obj = req.getJSONObject("params");
+                Iterator<String> keys = obj.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    NodeParam p = getParam(k);
+                    if (p != null) {
+                        switch (p.getType()) {
+                            case INT:
+                                params.put(k, obj.getInt(k));
+                                break;
+                            case FLOAT:
+                                params.put(k, (float) obj.getDouble(k));
+                                break;
+                            case STRING:
+                                params.put(k, obj.getString(k));
+                                break;
+                            case BOOL:
+                                params.put(k, obj.getBoolean(k));
+                                break;
+                        }
+                    }
+                }
+            } catch (JSONException e) {
+                params.clear();
+            }
+        }
+
+        return handleRequest(action, params, children);
+    }
 
 }

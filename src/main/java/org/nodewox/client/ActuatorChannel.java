@@ -1,48 +1,123 @@
 package org.nodewox.client;
 
-import java.util.Map;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 
 public abstract class ActuatorChannel extends Channel {
 
-    public ActuatorChannel(Thing thing, String key, DataType datatype, int dim) {
-        super(thing, key, FlowDir.IN, datatype, dim);
+    public ActuatorChannel(Thing thing, String key, DataType dtype, int dim) {
+        super(thing, key, FlowDir.IN, dtype, dim);
     }
 
-    public ActuatorChannel(Thing thing, String key, DataType datatype) {
-        super(thing, key, FlowDir.IN, datatype);
+    public ActuatorChannel(Thing thing, String key, DataType dtype) {
+        super(thing, key, FlowDir.IN, dtype);
     }
 
     protected abstract void perform(int src, int gid, Object[] data);
 
-    @Override
-    public final void handlePacket(NodeTalk.Packet packet) {
-        Object[] data = null;
-        boolean ok = false;
+    public void handlePacket(final byte[] payload) {
+        // decode packet
+        ByteBuffer bf = ByteBuffer.wrap(payload);
+
+        int src = bf.getInt();
+        int gid = bf.getInt();
+
+        final int n = getDataDim();
+        Object[] arr = new Object[n];
 
         switch (getDataType()) {
-            case ANY:
-                ok = true;
+            case BYTE:
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.get();
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = 0b0;
+                    }
+                }
                 break;
+
             case INT:
-                data = packet.getIntArray().getValueList().toArray(new Long[0]);
-                ok = data.length > 0;
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.getInt();
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = Integer.valueOf(0);
+                    }
+                }
                 break;
-            case FLOAT:
-                data = packet.getNumArray().getValueList().toArray(new Double[0]);
-                ok = data.length > 0;
+
+            case SHORT:
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.getShort();
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = Short.valueOf((short) 0);
+                    }
+                }
                 break;
+
+            case LONG:
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.getLong();
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = 0L;
+                    }
+                }
+                break;
+
             case STRING:
-                data = packet.getStrArray().getValueList().toArray(new String[0]);
-                ok = data.length > 0;
+                for (int i = 0; i < n; i++) {
+                    if (bf.get() == '\0') {
+                        arr[i] = "";
+                    } else {
+                        try {
+                            int start = bf.position();
+                            int cnt = 0;
+                            while (bf.get() != '\0') {
+                                cnt++;
+                            }
+                            byte[] ss = new byte[cnt];
+                            bf.get(ss, start, cnt);
+                            arr[i] = new String(ss);
+                        } catch (BufferUnderflowException e) {
+                            arr[i] = "";
+                        }
+                    }
+                }
                 break;
+
+            case FLOAT:
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.getFloat();
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = Float.valueOf(0);
+                    }
+                }
+                break;
+
             case BOOL:
-                data = packet.getBoolArray().getValueList().toArray(new Boolean[0]);
-                ok = data.length > 0;
+                for (int i = 0; i < n; i++) {
+                    try {
+                        arr[i] = bf.get() != 0;
+                    } catch (BufferUnderflowException e) {
+                        arr[i] = false;
+                    }
+                }
+                break;
+
+            case RAW:
+                int p = bf.position();
+                byte[] buf = new byte[payload.length - p];
+                bf.get(buf, p, payload.length - p);
+                arr = new Byte[buf.length];
+                for (int i = 0; i < arr.length; i++)
+                    arr[i] = buf[i];
                 break;
         }
 
-        if (ok)
-            perform(packet.getSrc(), packet.getGid(), data);
+        perform(src, gid, arr);
     }
 
 }

@@ -1,19 +1,31 @@
 package org.nodewox.client;
 
+import android.util.Log;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import static org.nodewox.client.NodeParam.ParamFlag.STATIC;
+import static org.nodewox.client.NodeParam.ParamFlag.VOLATILE;
+import static org.nodewox.client.NodeParam.ParamValueType.BOOL;
+import static org.nodewox.client.NodeParam.ParamValueType.FLOAT;
+import static org.nodewox.client.NodeParam.ParamValueType.INT;
+import static org.nodewox.client.NodeParam.ParamValueType.STRING;
+
 public class NodeParam<T extends Object> {
 
-    private final Node node;
-    private final String key;
-    private final T initValue;
+    private Node node;
+    private String key;
+    private ParamValueType type;
+    private ParamFlag flag = VOLATILE;
     private String name = "";
     private String comment = "";
     private int seq = 0;
-    private boolean persistent = false;
+
     private boolean writable = true;
     private boolean disabled = false;
+
+    private T initValue;
     private T value;
 
     public NodeParam(Node node, String key, String name, T val) {
@@ -29,6 +41,19 @@ public class NodeParam<T extends Object> {
         this.name = name;
         this.value = val;
         this.initValue = val;
+
+        if (val instanceof String) {
+            type = STRING;
+        } else if (value instanceof Integer) {
+            type = INT;
+        } else if (value instanceof Float) {
+            type = FLOAT;
+        } else if (value instanceof Boolean) {
+            type = BOOL;
+        } else {
+            type = STRING;
+            Log.e("nodewox/param", "param data type accept only int, float, bool, string, default to string");
+        }
     }
 
     public void reset() {
@@ -47,8 +72,20 @@ public class NodeParam<T extends Object> {
         name = v;
     }
 
+    public ParamValueType getType() {
+        return type;
+    }
+
     public boolean isDisabled() {
         return disabled;
+    }
+
+    public ParamFlag getFlag() {
+        return flag;
+    }
+
+    public void setFlag(ParamFlag flag) {
+        this.flag = flag;
     }
 
     public T getValue() {
@@ -61,7 +98,7 @@ public class NodeParam<T extends Object> {
         if (BuildConfig.DEBUG && (T) val == null)
             throw new AssertionError("param value must not be null, but set to " + val);
 
-        if (!disabled && !value.equals(val)) {
+        if (flag != STATIC && !disabled && !value.equals(val)) {
             value = val;
             node.onParamChanged(this);
             return true;
@@ -94,25 +131,44 @@ public class NodeParam<T extends Object> {
 
         obj.put("key", key);
         obj.put("name", name);
-        obj.put("persistent", persistent);
         obj.put("writable", writable);
         obj.put("seq", seq);
 
         if (comment.length() > 0)
             obj.put("comment", comment);
 
-        if (value instanceof String) {
-            obj.put("datatype", "string");
-            obj.put("value", value);
-        } else if (value instanceof Integer) {
-            obj.put("datatype", "int");
-            obj.put("value", value);
-        } else if (value instanceof Float) {
-            obj.put("datatype", "number");
-            obj.put("value", value);
-        } else if (value instanceof Boolean) {
-            obj.put("datatype", "bool");
-            obj.put("value", value);
+        switch (flag) {
+            case VOLATILE:
+                obj.put("flag", "volatile");
+                break;
+            case PERSISTENT:
+                obj.put("flag", "persistent");
+                break;
+            case READONLY:
+                obj.put("flag", "readonly");
+                break;
+            case STATIC:
+                obj.put("flag", "static");
+                break;
+        }
+
+        switch (type) {
+            case STRING:
+                obj.put("datatype", "string");
+                obj.put("value", value);
+                break;
+            case INT:
+                obj.put("datatype", "int");
+                obj.put("value", value);
+                break;
+            case FLOAT:
+                obj.put("datatype", "float");
+                obj.put("value", value);
+                break;
+            case BOOL:
+                obj.put("datatype", "bool");
+                obj.put("value", value);
+                break;
         }
 
         return obj;
@@ -146,15 +202,24 @@ public class NodeParam<T extends Object> {
         }
 
         if (!disabled && !data.isNull("value")) {
-            if (value instanceof String)
-                setValue((T) data.getString("value"));
-            else if (value instanceof Integer)
-                setValue((T) Integer.valueOf(data.getInt("value")));
-            else if (value instanceof Float)
-                setValue((T) Double.valueOf(data.getDouble("value")));
-            else if (value instanceof Boolean)
-                setValue((T) Boolean.valueOf(data.getBoolean("value")));
+            switch (type) {
+                case STRING:
+                    setValue((T) data.getString("value"));
+                    break;
+                case INT:
+                    setValue((T) Integer.valueOf(data.getInt("value")));
+                    break;
+                case FLOAT:
+                    setValue((T) Double.valueOf(data.getDouble("value")));
+                    break;
+                case BOOL:
+                    setValue((T) Boolean.valueOf(data.getBoolean("value")));
+                    break;
+            }
         }
     }
 
+    public enum ParamFlag {VOLATILE, PERSISTENT, STATIC, READONLY}
+
+    public enum ParamValueType {INT, FLOAT, STRING, BOOL}
 }

@@ -1,35 +1,31 @@
 package org.nodewox.client;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import static org.nodewox.client.Channel.DataType.RAW;
+
 public abstract class Channel extends Node {
 
     private final FlowDir flow;
-    private DataType datatype;
-    private int datadim;
+    private final DataType datatype;
+    private final int datadim;
 
-    public Channel(Thing thing, String key, FlowDir flow, DataType datatype, int dim) {
+    public Channel(Thing thing, String key, FlowDir flow, DataType dtype) {
         super(thing.getApp(), key, thing);
         this.flow = flow;
-        this.datatype = datatype;
-        this.datadim = datatype != datatype.ANY ? dim : 0;
+        this.datatype = dtype;
+        this.datadim = (dtype == RAW) ? 0 : 1;
     }
 
-    public Channel(Thing thing, String key, FlowDir flow, DataType datatype) {
+    public Channel(Thing thing, String key, FlowDir flow, DataType dtype, int dim) {
         super(thing.getApp(), key, thing);
         this.flow = flow;
-        this.datatype = datatype;
-        this.datadim = 0;
-    }
-
-    // handle incomming packet
-    public abstract void handlePacket(NodeTalk.Packet packet);
-
-    public void setDataType(DataType dtype, int dim) {
-        datatype = dtype;
-        this.datadim = dtype != datatype.ANY ? dim : 0;
+        this.datatype = dtype;
+        this.datadim = (dtype == RAW) ? 0 : (dim > 0 ? dim : 1);
     }
 
     public DataType getDataType() {
@@ -59,22 +55,28 @@ public abstract class Channel extends Node {
 
         String dt = "";
         switch (datatype) {
-            case ANY:
+            case RAW:
+                break;
+            case BYTE:
+                dt = "byte";
+                break;
+            case SHORT:
+                dt = "int16";
                 break;
             case INT:
-                dt = "int";
+                dt = "int32";
+                break;
+            case LONG:
+                dt = "int64";
                 break;
             case FLOAT:
-                dt = "number";
+                dt = "float";
                 break;
             case BOOL:
                 dt = "bool";
                 break;
             case STRING:
                 dt = "string";
-                break;
-            case BIN:
-                dt = "bin";
                 break;
         }
 
@@ -89,4 +91,6 @@ public abstract class Channel extends Node {
     }
 
     public enum FlowDir {IN, OUT}
+
+    public enum DataType {RAW, BYTE, SHORT, INT, LONG, FLOAT, STRING, BOOL}
 }

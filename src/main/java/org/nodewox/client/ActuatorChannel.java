@@ -31,12 +31,12 @@ public abstract class ActuatorChannel extends Channel {
                     try {
                         arr[i] = bf.get();
                     } catch (BufferUnderflowException e) {
-                        arr[i] = 0b0;
+                        arr[i] = '\0';
                     }
                 }
                 break;
 
-            case INT:
+            case INT32:
                 for (int i = 0; i < n; i++) {
                     try {
                         arr[i] = bf.getInt();
@@ -46,7 +46,7 @@ public abstract class ActuatorChannel extends Channel {
                 }
                 break;
 
-            case SHORT:
+            case INT16:
                 for (int i = 0; i < n; i++) {
                     try {
                         arr[i] = bf.getShort();
@@ -56,7 +56,7 @@ public abstract class ActuatorChannel extends Channel {
                 }
                 break;
 
-            case LONG:
+            case INT64:
                 for (int i = 0; i < n; i++) {
                     try {
                         arr[i] = bf.getLong();

@@ -1,7 +1,5 @@
 package org.nodewox.client;
 
-import android.util.Log;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -60,13 +58,13 @@ public abstract class Channel extends Node {
             case BYTE:
                 dt = "byte";
                 break;
-            case SHORT:
+            case INT16:
                 dt = "int16";
                 break;
-            case INT:
+            case INT32:
                 dt = "int32";
                 break;
-            case LONG:
+            case INT64:
                 dt = "int64";
                 break;
             case FLOAT:
@@ -92,5 +90,5 @@ public abstract class Channel extends Node {
 
     public enum FlowDir {IN, OUT}
 
-    public enum DataType {RAW, BYTE, SHORT, INT, LONG, FLOAT, STRING, BOOL}
+    public enum DataType {RAW, BYTE, INT16, INT32, INT64, FLOAT, STRING, BOOL}
 }

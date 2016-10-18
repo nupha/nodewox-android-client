@@ -19,7 +19,7 @@ public abstract class SourceChannel extends Channel {
             Messenger messenger = ((MessageSensible) root).getMessenger();
             if (messenger.isConnected()) {
                 // encode packet
-                int n = getDataDim();
+                int n = Math.min(getDataDim(), data.length);
                 boolean defaults = true;
                 ByteBuffer buf = null;
 
@@ -28,83 +28,62 @@ public abstract class SourceChannel extends Channel {
                         if (data.length > 0) {
                             buf = ByteBuffer.allocate(data.length);
                             for (int i = 0; i < data.length; i++) {
-                                if (i < data.length) {
-                                    Byte b = (Byte) data[i];
-                                    if (b != 0b0) defaults = false;
-                                    buf.put(b);
-                                } else
-                                    buf.put((byte) '\0');
+                                Byte b = (Byte) data[i];
+                                buf.put(b);
+                                if (b != '\0') defaults = false;
                             }
                         }
                         break;
                     case BYTE:
                         buf = ByteBuffer.allocate(n);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                Byte b = (Byte) data[i];
-                                if (b != 0b0) defaults = false;
-                                buf.put(b);
-                            } else
-                                buf.put((byte) 0);
+                            Byte b = (Byte) data[i];
+                            if (b != '\0') defaults = false;
+                            buf.put(b);
                         }
                         break;
-                    case SHORT:
+                    case INT16:
                         buf = ByteBuffer.allocate(n * 2);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                if ((Short) data[i] != 0) defaults = false;
-                                buf.putShort((Short) data[i]);
-                            } else
-                                buf.putShort((short) 0);
+                            if ((Short) data[i] != 0) defaults = false;
+                            buf.putShort((Short) data[i]);
                         }
                         break;
-                    case INT:
+                    case INT32:
                         buf = ByteBuffer.allocate(n * 4);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                Integer u = (Integer) data[i];
-                                if (u != 0) defaults = false;
-                                buf.putInt(u);
-                            } else
-                                buf.putInt(0);
+                            Integer u = (Integer) data[i];
+                            if (u != 0) defaults = false;
+                            buf.putInt(u);
                         }
                         break;
-                    case LONG:
+                    case INT64:
                         buf = ByteBuffer.allocate(n * 8);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                Long u = (Long) data[i];
-                                if (u != 0) defaults = false;
-                                buf.putLong(u);
-                            } else
-                                buf.putLong(0L);
+                            Long u = (Long) data[i];
+                            if (u != 0) defaults = false;
+                            buf.putLong(u);
                         }
                         break;
                     case FLOAT:
                         buf = ByteBuffer.allocate(n * 4);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                Float f = (Float) data[i];
-                                if (f != 0) defaults = false;
-                                buf.putFloat(f);
-                            } else
-                                buf.putFloat(0);
+                            Float f = (Float) data[i];
+                            if (f != 0) defaults = false;
+                            buf.putFloat(f);
                         }
                         break;
                     case BOOL:
                         buf = ByteBuffer.allocate(n);
                         for (int i = 0; i < n; i++) {
-                            if (i < data.length) {
-                                Boolean b = (Boolean) data[i];
-                                if (b) defaults = false;
-                                buf.put((byte) (b ? 1 : 0));
-                            } else
-                                buf.put((byte) 0);
+                            Boolean b = (Boolean) data[i];
+                            if (b) defaults = false;
+                            buf.put((byte) (b ? 1 : 0));
                         }
                         break;
                     case STRING:
                         int sz = 0;
-                        for (int i = 0; i < n && i < data.length; i++)
+                        for (int i = 0; i < n; i++)
                             sz += ((String) data[i]).getBytes().length;
 
                         if (sz > 0) {
@@ -112,12 +91,9 @@ public abstract class SourceChannel extends Channel {
                             sz += n;
                             buf = ByteBuffer.allocate(sz);
                             for (int i = 0; i < n; i++) {
-                                if (i < data.length) {
-                                    byte[] s = ((String) data[i]).getBytes();
-                                    buf.put(s);
-                                    buf.put((byte) 0);
-                                } else
-                                    buf.put((byte) 0);
+                                byte[] s = ((String) data[i]).getBytes();
+                                buf.put(s);
+                                buf.put((byte) '\0');
                             }
                         }
                         break;

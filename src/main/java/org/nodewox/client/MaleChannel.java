@@ -2,14 +2,14 @@ package org.nodewox.client;
 
 import java.nio.ByteBuffer;
 
-public abstract class SourceChannel extends Channel {
+public abstract class MaleChannel extends Channel {
 
-    public SourceChannel(Thing thing, String key, DataType dtype, int dim) {
-        super(thing, key, FlowDir.OUT, dtype, dim);
+    public MaleChannel(Thing thing, String key, DataType dtype, int dim) {
+        super(thing, key, Gender.MALE, dtype, dim);
     }
 
-    public SourceChannel(Thing thing, String key, DataType dtype) {
-        super(thing, key, FlowDir.OUT, dtype);
+    public MaleChannel(Thing thing, String key, DataType dtype) {
+        super(thing, key, Gender.MALE, dtype);
     }
 
     protected void feedData(final Object[] data) {

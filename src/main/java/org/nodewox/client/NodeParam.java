@@ -22,7 +22,6 @@ public class NodeParam<T extends Object> {
     private String comment = "";
     private int seq = 0;
 
-    private boolean writable = true;
     private boolean disabled = false;
 
     private T initValue;
@@ -110,14 +109,6 @@ public class NodeParam<T extends Object> {
         seq = v;
     }
 
-    public boolean isReadOnly() {
-        return !writable;
-    }
-
-    public void setReadOnly(boolean v) {
-        writable = !v;
-    }
-
     public String getComment() {
         return comment;
     }
@@ -131,7 +122,6 @@ public class NodeParam<T extends Object> {
 
         obj.put("key", key);
         obj.put("name", name);
-        obj.put("writable", writable);
         obj.put("seq", seq);
 
         if (comment.length() > 0)
@@ -196,10 +186,6 @@ public class NodeParam<T extends Object> {
 
         if (!data.isNull("seq"))
             seq = data.getInt("seq");
-
-        if (!data.isNull("writable")) {
-            writable = data.getBoolean("writable");
-        }
 
         if (!disabled && !data.isNull("value")) {
             switch (type) {

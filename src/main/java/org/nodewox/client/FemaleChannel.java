@@ -3,14 +3,14 @@ package org.nodewox.client;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
-public abstract class ActuatorChannel extends Channel {
+public abstract class FemaleChannel extends Channel {
 
-    public ActuatorChannel(Thing thing, String key, DataType dtype, int dim) {
-        super(thing, key, FlowDir.IN, dtype, dim);
+    public FemaleChannel(Thing thing, String key, DataType dtype, int dim) {
+        super(thing, key, Gender.FEMALE, dtype, dim);
     }
 
-    public ActuatorChannel(Thing thing, String key, DataType dtype) {
-        super(thing, key, FlowDir.IN, dtype);
+    public FemaleChannel(Thing thing, String key, DataType dtype) {
+        super(thing, key, Gender.FEMALE, dtype);
     }
 
     protected abstract void perform(int src, int gid, Object[] data);

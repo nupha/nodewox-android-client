@@ -6,17 +6,15 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 public abstract class Node {
 
     // params of node
-    protected final Map<String, NodeParam> mParams = new HashMap<>();
+    private final HashMap<String, NodeParam> mParams = new HashMap<>();
     private final NxApplication mApp;
 
     // map of {key:child-node}
@@ -121,15 +119,18 @@ public abstract class Node {
 
     public <T extends Object> NodeParam<T> addParam(String key, String name, T val) {
         NodeParam<T> p = new NodeParam<>(this, key, name, val);
-        p.setSeq(mParams.size());
         mParams.put(key, p);
+        p.setSeq(mParams.size());
         return p;
     }
 
     public <T extends Object> NodeParam<T> addParam(String key, T val) {
-        NodeParam<T> p = new NodeParam<>(this, key, "", val);
-        p.setSeq(mParams.size());
-        mParams.put(key, p);
+        return addParam(key, "", val);
+    }
+
+    public <T extends Object> NodeParam<T> addStaticParam(String key, String name, T val) {
+        NodeParam<T> p = addParam(key, name, val);
+        p.setFlag(NodeParam.ParamFlag.STATIC);
         return p;
     }
 
@@ -173,7 +174,6 @@ public abstract class Node {
             while (it.hasNext()) {
                 String key = it.next();
                 Node ch = getChild(key);
-                Log.v("nodewox", key + ", " + chans.getJSONObject(key));
                 if (ch != null)
                     ch.configure(chans.getJSONObject(key));
             }
@@ -216,7 +216,6 @@ public abstract class Node {
 
     protected void reset() {
         mID = 0;
-        mKey = null;
     }
 
     public RestRequest getRestRequest() {
@@ -227,8 +226,8 @@ public abstract class Node {
         mRest = rest;
     }
 
-    public Map<String, JSONObject> handleRequest(int action, Map<String, Object> params, int[] children) {
-        boolean report_params = action == 1;
+    public Map<String, JSONObject> handleRequest(String action, Map<String, Object> params, int[] children) {
+        boolean report_params = action.equals("status");
 
         if (params != null && !params.isEmpty()) {
             // set params
@@ -278,11 +277,12 @@ public abstract class Node {
 
     // handle request message
     public Map<String, JSONObject> handleRequest(JSONObject req) {
-        int action = 0;
+        String action = "";
         if (!req.isNull("action")) {
             try {
-                action = req.getInt("action");
+                action = req.getString("action");
             } catch (JSONException e) {
+                action = "";
             }
         }
 

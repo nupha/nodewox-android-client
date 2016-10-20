@@ -201,8 +201,8 @@ public abstract class Messenger extends Handler {
                     break;
 
                 case "":
-                    if (target instanceof ActuatorChannel)
-                        ((ActuatorChannel) target).handlePacket(payload);
+                    if (target instanceof FemaleChannel)
+                        ((FemaleChannel) target).handlePacket(payload);
                     break;
             }
 

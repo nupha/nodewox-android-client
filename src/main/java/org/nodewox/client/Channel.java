@@ -8,20 +8,20 @@ import static org.nodewox.client.Channel.DataType.RAW;
 
 public abstract class Channel extends Node {
 
-    private final FlowDir flow;
+    private final Gender gender;
     private final DataType datatype;
     private final int datadim;
 
-    public Channel(Thing thing, String key, FlowDir flow, DataType dtype) {
+    public Channel(Thing thing, String key, Gender gender, DataType dtype) {
         super(thing.getApp(), key, thing);
-        this.flow = flow;
+        this.gender = gender;
         this.datatype = dtype;
         this.datadim = (dtype == RAW) ? 0 : 1;
     }
 
-    public Channel(Thing thing, String key, FlowDir flow, DataType dtype, int dim) {
+    public Channel(Thing thing, String key, Gender gender, DataType dtype, int dim) {
         super(thing.getApp(), key, thing);
-        this.flow = flow;
+        this.gender = gender;
         this.datatype = dtype;
         this.datadim = (dtype == RAW) ? 0 : (dim > 0 ? dim : 1);
     }
@@ -34,20 +34,20 @@ public abstract class Channel extends Node {
         return datadim;
     }
 
-    public FlowDir getFlow() {
-        return flow;
+    public Gender getGender() {
+        return gender;
     }
 
     @Override
     public JSONObject asJSON() throws JSONException {
         JSONObject res = super.asJSON();
 
-        switch (flow) {
-            case IN:
-                res.put("flow", "I");
+        switch (gender) {
+            case MALE:
+                res.put("gender", "M");
                 break;
-            case OUT:
-                res.put("flow", "O");
+            case FEMALE:
+                res.put("gender", "F");
                 break;
         }
 
@@ -88,7 +88,7 @@ public abstract class Channel extends Node {
         return res;
     }
 
-    public enum FlowDir {IN, OUT}
+    public enum Gender {MALE, FEMALE}
 
     public enum DataType {RAW, BYTE, INT16, INT32, INT64, FLOAT, STRING, BOOL}
 }

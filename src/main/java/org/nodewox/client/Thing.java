@@ -6,6 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public abstract class Thing extends Node {
 
@@ -19,6 +20,8 @@ public abstract class Thing extends Node {
 
     protected abstract void saveConfig(JSONObject data);
 
+    protected abstract void onUnregistered();
+
     public String getSecret() {
         return mSecret;
     }
@@ -28,18 +31,38 @@ public abstract class Thing extends Node {
     }
 
     public boolean isRegistered() {
-        if (this instanceof MessageSensible) {
-            String k = getKey();
-            Messenger mgr = ((MessageSensible) this).getMessenger();
-            return k != null && k.length() > 0 && mgr.getCert() != null && mgr.getCertPass() != null;
-        } else
-            return false;
+        String k = getKey();
+        if (k != null && k.length() > 0) {
+            if (this instanceof MessageSensible) {
+                Messenger mgr = ((MessageSensible) this).getMessenger();
+                return mgr.getCert() != null && mgr.getCertPass() != null;
+            }
+        }
+        return false;
     }
 
     @Override
-    public void reset() {
-        super.reset();
-        mSecret = null;
+    public Map<String, JSONObject> handleRequest(String action, Map<String, Object> params, int[] children) {
+        if (action.equals("unregister")) {
+            if (isRegistered()) {
+                ((MessageSensible) this).getMessenger().disconnect();
+
+                JSONObject cfg = new JSONObject();
+                try {
+                    cfg.put("key", getKey());
+                    cfg.put("secret", getSecret());
+                } catch (JSONException e) {
+                    Log.w("nodewox/thing", "make initial config");
+                }
+                saveConfig(cfg);
+
+                reset();
+                onUnregistered();
+            }
+            return null;
+
+        } else
+            return super.handleRequest(action, params, children);
     }
 
     @Override

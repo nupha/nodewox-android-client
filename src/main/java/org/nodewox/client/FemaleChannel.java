@@ -19,9 +19,7 @@ public abstract class FemaleChannel extends Channel {
         // decode packet
         ByteBuffer bf = ByteBuffer.wrap(payload);
 
-        int src = bf.getInt();
-        int gid = bf.getInt();
-
+        int src = 0, gid = 0;
         final int n = getDataDim();
         Object[] arr = new Object[n];
 

@@ -29,7 +29,7 @@ public abstract class MaleChannel extends Channel {
                             buf = ByteBuffer.allocate(data.length);
                             for (int i = 0; i < data.length; i++) {
                                 Byte b = (Byte) data[i];
-                                buf.put(b);
+                                buf.put(i, b);
                                 if (b != '\0') defaults = false;
                             }
                         }
@@ -39,14 +39,14 @@ public abstract class MaleChannel extends Channel {
                         for (int i = 0; i < n; i++) {
                             Byte b = (Byte) data[i];
                             if (b != '\0') defaults = false;
-                            buf.put(b);
+                            buf.put(i, b);
                         }
                         break;
                     case INT16:
                         buf = ByteBuffer.allocate(n * 2);
                         for (int i = 0; i < n; i++) {
                             if ((Short) data[i] != 0) defaults = false;
-                            buf.putShort((Short) data[i]);
+                            buf.putShort(i, (Short) data[i]);
                         }
                         break;
                     case INT32:
@@ -54,7 +54,7 @@ public abstract class MaleChannel extends Channel {
                         for (int i = 0; i < n; i++) {
                             Integer u = (Integer) data[i];
                             if (u != 0) defaults = false;
-                            buf.putInt(u);
+                            buf.putInt(i, u);
                         }
                         break;
                     case INT64:
@@ -62,7 +62,7 @@ public abstract class MaleChannel extends Channel {
                         for (int i = 0; i < n; i++) {
                             Long u = (Long) data[i];
                             if (u != 0) defaults = false;
-                            buf.putLong(u);
+                            buf.putLong(i, u);
                         }
                         break;
                     case FLOAT:
@@ -70,7 +70,7 @@ public abstract class MaleChannel extends Channel {
                         for (int i = 0; i < n; i++) {
                             Float f = (Float) data[i];
                             if (f != 0) defaults = false;
-                            buf.putFloat(f);
+                            buf.putFloat(i, f);
                         }
                         break;
                     case BOOL:
@@ -78,7 +78,7 @@ public abstract class MaleChannel extends Channel {
                         for (int i = 0; i < n; i++) {
                             Boolean b = (Boolean) data[i];
                             if (b) defaults = false;
-                            buf.put((byte) (b ? 1 : 0));
+                            buf.put(i, (byte) (b ? 1 : 0));
                         }
                         break;
                     case STRING:
@@ -90,10 +90,13 @@ public abstract class MaleChannel extends Channel {
                             defaults = false;
                             sz += n;
                             buf = ByteBuffer.allocate(sz);
+                            int pos = 0;
                             for (int i = 0; i < n; i++) {
                                 byte[] s = ((String) data[i]).getBytes();
-                                buf.put(s);
-                                buf.put((byte) '\0');
+                                buf.put(s, pos, s.length);
+                                pos++;
+                                buf.put(pos, (byte) '\0');
+                                pos += s.length;
                             }
                         }
                         break;

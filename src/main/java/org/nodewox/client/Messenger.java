@@ -60,6 +60,7 @@ public abstract class Messenger extends Handler {
 
     public abstract byte[] getMqttWillPayload();
 
+    public abstract int getMqttWillQos();
 
     public NxApplication getApp() {
         return mApp;
@@ -70,10 +71,6 @@ public abstract class Messenger extends Handler {
     }
 
     public void handleMessengerEvent(int event, Bundle data) {
-    }
-
-    public int getMqttWillQos() {
-        return 0;
     }
 
     public boolean isMqttClear() {

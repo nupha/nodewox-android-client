@@ -20,7 +20,7 @@ public abstract class MaleChannel extends Channel {
             if (messenger.isConnected()) {
                 // encode packet
                 int n = Math.min(getDataDim(), data.length);
-                boolean defaults = true;
+                int lastidx = -1;
                 ByteBuffer buf = null;
 
                 switch (getDataType()) {
@@ -30,7 +30,7 @@ public abstract class MaleChannel extends Channel {
                             for (int i = 0; i < data.length; i++) {
                                 Byte b = (Byte) data[i];
                                 buf.put(i, b);
-                                if (b != '\0') defaults = false;
+                                if (b != '\0') lastidx = i;
                             }
                         }
                         break;
@@ -38,14 +38,14 @@ public abstract class MaleChannel extends Channel {
                         buf = ByteBuffer.allocate(n);
                         for (int i = 0; i < n; i++) {
                             Byte b = (Byte) data[i];
-                            if (b != '\0') defaults = false;
+                            if (b != '\0') lastidx = i;
                             buf.put(i, b);
                         }
                         break;
                     case INT16:
                         buf = ByteBuffer.allocate(n * 2);
                         for (int i = 0; i < n; i++) {
-                            if ((Short) data[i] != 0) defaults = false;
+                            if ((Short) data[i] != 0) lastidx = i;
                             buf.putShort(i * 2, (Short) data[i]);
                         }
                         break;
@@ -53,7 +53,7 @@ public abstract class MaleChannel extends Channel {
                         buf = ByteBuffer.allocate(n * 4);
                         for (int i = 0; i < n; i++) {
                             Integer u = (Integer) data[i];
-                            if (u != 0) defaults = false;
+                            if (u != 0) lastidx = i;
                             buf.putInt(i * 4, u);
                         }
                         break;
@@ -61,7 +61,7 @@ public abstract class MaleChannel extends Channel {
                         buf = ByteBuffer.allocate(n * 8);
                         for (int i = 0; i < n; i++) {
                             Long u = (Long) data[i];
-                            if (u != 0) defaults = false;
+                            if (u != 0) lastidx = i;
                             buf.putLong(i * 8, u);
                         }
                         break;
@@ -69,7 +69,7 @@ public abstract class MaleChannel extends Channel {
                         buf = ByteBuffer.allocate(n * 4);
                         for (int i = 0; i < n; i++) {
                             Float f = (Float) data[i];
-                            if (f != 0) defaults = false;
+                            if (f != 0) lastidx = i;
                             buf.putFloat(i * 4, f);
                         }
                         break;
@@ -77,32 +77,30 @@ public abstract class MaleChannel extends Channel {
                         buf = ByteBuffer.allocate(n);
                         for (int i = 0; i < n; i++) {
                             Boolean b = (Boolean) data[i];
-                            if (b) defaults = false;
+                            if (b) lastidx = i;
                             buf.put(i, (byte) (b ? 1 : 0));
                         }
                         break;
                     case STRING:
                         int sz = 0;
-                        for (int i = 0; i < n; i++)
-                            sz += ((String) data[i]).getBytes().length;
-
-                        if (sz > 0) {
-                            defaults = false;
-                            sz += n;
+                        for (int i = 0; i < n; i++) {
+                            if (((String) data[i]).length() > 0) {
+                                lastidx = i;
+                                sz += ((String) data[i]).getBytes().length + 1;
+                            }
+                        }
+                        if (lastidx >= 0) {
                             buf = ByteBuffer.allocate(sz);
-                            int pos = 0;
-                            for (int i = 0; i < n; i++) {
+                            for (int i = 0; i <= lastidx; i++) {
                                 byte[] s = ((String) data[i]).getBytes();
-                                buf.put(s, pos, s.length);
-                                pos++;
-                                buf.put(pos, (byte) '\0');
-                                pos += s.length;
+                                buf.put(s);
+                                buf.put((byte) '\0');
                             }
                         }
                         break;
                 }
 
-                if (defaults)
+                if (lastidx < 0)
                     buf = null;
 
                 messenger.publish("/NX/" + getID(), buf == null ? null : buf.array(), 0, false, null);

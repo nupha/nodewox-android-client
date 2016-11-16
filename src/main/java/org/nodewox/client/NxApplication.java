@@ -13,4 +13,7 @@ public abstract class NxApplication extends Application {
         return mRootNode;
     }
 
+    public String getTopicPrefix() {
+        return "";
+    }
 }

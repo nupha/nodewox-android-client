@@ -258,7 +258,7 @@ public abstract class Node {
         }
 
         Map<String, JSONObject> res = new HashMap<>();
-        res.put("/NX/" + getID() + "/r", resp);
+        res.put(mApp.getTopicPrefix() + getID() + "/r", resp);
 
         if (children != null && children.length > 0) {
             // request into children

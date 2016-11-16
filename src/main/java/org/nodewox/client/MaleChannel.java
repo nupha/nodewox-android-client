@@ -103,7 +103,7 @@ public abstract class MaleChannel extends Channel {
                 if (lastidx < 0)
                     buf = null;
 
-                messenger.publish("/NX/" + getID(), buf == null ? null : buf.array(), 0, false, null);
+                messenger.publish(getApp().getTopicPrefix() + getID(), buf == null ? null : buf.array(), 0, false, null);
             }
         }
     }

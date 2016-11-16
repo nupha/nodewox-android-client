@@ -20,12 +20,12 @@ import static android.content.Context.ALARM_SERVICE;
 
 public abstract class Messenger extends Handler {
 
-    // regexp for known topic
-    private static final Pattern PAT_KNOWN_TOPIC = Pattern.compile("^/NX/(\\d+)(/q)?$");
-
     private final NxApplication mApp;
     private final MessageSensible theNode;
     private final NxService.EventType[] etypes = NxService.EventType.values();
+
+    // regexp for known topic
+    private final Pattern mKnownTopicPat;
 
     private PendingIntent mConnCheckIntent = null;
     private boolean mIsConnected = false;
@@ -36,6 +36,7 @@ public abstract class Messenger extends Handler {
 
         this.theNode = mgrNode;
         this.mApp = ((Node) mgrNode).getApp();
+        mKnownTopicPat = Pattern.compile("^" + this.mApp.getTopicPrefix() + "(\\d+)(/q)?$");
     }
 
     public abstract String getAddr();
@@ -157,7 +158,7 @@ public abstract class Messenger extends Handler {
     }
 
     private void processMessage(String topic, byte[] payload, int qos, boolean dup, boolean retain) {
-        Matcher m = PAT_KNOWN_TOPIC.matcher(topic);
+        Matcher m = mKnownTopicPat.matcher(topic);
         if (!m.matches()) {
             theNode.onMessage(topic, payload, qos, dup, retain);
             return;
